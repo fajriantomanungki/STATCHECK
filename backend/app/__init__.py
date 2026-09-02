@@ -1,0 +1,1 @@
+"""STATCHECK backend application."""
