@@ -13,3 +13,10 @@ Phase 1 memiliki tabel `users` sebagai fondasi autentikasi.
 | is_active | BOOLEAN | Status akun |
 | created_at | TIMESTAMPTZ | Waktu dibuat |
 | updated_at | TIMESTAMPTZ | Waktu diperbarui |
+
+## Tabel Phase 2
+
+- `indicators`: master indikator, kategori, satuan default, fungsi, dan status.
+- `brs`: registrasi BRS, jadwal rilis, PJK, supervisor, dan status workflow.
+- `brs_team`: anggota tim penyusun pada setiap BRS.
+- `brs_data`: nilai indikator, periode, satuan, analisis, dan fenomena.

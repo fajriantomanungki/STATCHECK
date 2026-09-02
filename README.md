@@ -32,3 +32,18 @@ Frontend tersedia di `http://localhost:3000` dan dokumentasi API di
 
 Akun development awal mengikuti nilai `INITIAL_ADMIN_NIK` dan
 `INITIAL_ADMIN_PASSWORD` pada `.env`. Ganti seluruh secret sebelum deployment.
+
+## Phase 2 — BRS dan Master Indikator
+
+Phase 2 menyediakan:
+
+- Master indikator beserta kategori, satuan, fungsi, dan status aktif
+- Registrasi dan perubahan identitas BRS
+- Penetapan PJK, supervisor, serta tim penyusun
+- Input, perubahan, dan penghapusan data indikator BRS
+- Kolom analisis dan fenomena untuk setiap nilai indikator
+- Ringkasan jumlah BRS, draft, indikator, dan data pada dashboard
+- Pembatasan akses berdasarkan PJK, supervisor, tim, dan level pengguna
+
+Akun development supervisor tersedia menggunakan nilai
+`INITIAL_SUPERVISOR_NIK` dan `INITIAL_SUPERVISOR_PASSWORD` pada `.env.example`.

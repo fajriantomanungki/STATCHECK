@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     initial_admin_nik: str = "admin"
     initial_admin_name: str = "Administrator STATCHECK"
     initial_admin_password: str = "Admin123!"
+    initial_supervisor_nik: str = "supervisor"
+    initial_supervisor_name: str = "Supervisor STATCHECK"
+    initial_supervisor_password: str = "Supervisor123!"
 
     model_config = SettingsConfigDict(env_file=("../.env", ".env"), extra="ignore")
 
