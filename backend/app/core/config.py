@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     initial_supervisor_nik: str = "supervisor"
     initial_supervisor_name: str = "Supervisor STATCHECK"
     initial_supervisor_password: str = "Supervisor123!"
+    upload_dir: str = "uploads"
+    max_upload_size_mb: int = 25
 
     model_config = SettingsConfigDict(env_file=("../.env", ".env"), extra="ignore")
 

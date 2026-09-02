@@ -18,7 +18,7 @@ export type TeamMember = { id: string; role: string; user: UserOption };
 export type BRS = {
   id: string; kode_brs: string; nama_brs: string; waktu_rilis: string;
   fungsi_pj: string; status: string; pjk: UserOption; supervisor: UserOption | null;
-  team?: TeamMember[]; jumlah_data: number; created_at: string; updated_at?: string;
+  team?: TeamMember[]; jumlah_data: number; jumlah_dokumen: number; created_at: string; updated_at?: string;
 };
 
 export type BRSForm = {
@@ -38,5 +38,5 @@ export type BRSData = BRSDataForm & {
 };
 
 export type DashboardSummary = {
-  total_brs: number; draft_brs: number; total_indicators: number; total_brs_data: number;
+  total_brs: number; draft_brs: number; total_indicators: number; total_brs_data: number; total_documents: number;
 };

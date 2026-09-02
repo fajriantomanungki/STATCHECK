@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from app.api.access import can_view_brs
 from app.api.deps import CurrentUser, DbSession
 from app.models.brs import BRS, BRSData
+from app.models.document import Document
 from app.models.indicator import Indicator
 from app.schemas.brs import DashboardSummary
 
@@ -20,9 +21,17 @@ def summary(current_user: CurrentUser, db: DbSession) -> DashboardSummary:
     if visible_ids:
         total_data = db.scalar(select(func.count()).select_from(BRSData).where(BRSData.brs_id.in_(visible_ids))) or 0
     total_indicators = db.scalar(select(func.count()).select_from(Indicator).where(Indicator.is_active.is_(True))) or 0
+    total_documents = 0
+    if visible_ids:
+        total_documents = db.scalar(
+            select(func.count()).select_from(Document).where(
+                Document.brs_id.in_(visible_ids), Document.status == "active"
+            )
+        ) or 0
     return DashboardSummary(
         total_brs=len(visible),
         draft_brs=sum(brs.status == "draft" for brs in visible),
         total_indicators=total_indicators,
         total_brs_data=total_data,
+        total_documents=total_documents,
     )

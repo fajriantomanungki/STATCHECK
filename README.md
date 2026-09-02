@@ -47,3 +47,26 @@ Phase 2 menyediakan:
 
 Akun development supervisor tersedia menggunakan nilai
 `INITIAL_SUPERVISOR_NIK` dan `INITIAL_SUPERVISOR_PASSWORD` pada `.env.example`.
+
+## Phase 3 — Dokumen dan Ekstraksi Teks
+
+Phase 3 menyediakan:
+
+- Upload Bahan Publikasi, Bahan Paparan, dan Narasi Pimpinan
+- Dukungan file PDF, PPTX, dan DOCX hingga 25 MB
+- Penyimpanan file lokal pada `backend/uploads/`
+- Ekstraksi teks per halaman PDF, per slide PPTX, dan isi DOCX
+- Status dan pesan kegagalan ekstraksi
+- Versioning dokumen tanpa menghapus versi sebelumnya
+- Pratinjau hasil ekstraksi dan unduh file dari halaman Dokumen BRS
+
+Setiap perubahan dependency backend memerlukan pembangunan ulang container:
+
+```bash
+docker compose down
+docker compose up --build
+```
+
+Ekstraksi Phase 3 membaca teks yang memang tertanam di dokumen. OCR untuk PDF
+hasil scan dan pembacaan angka dari grafik akan ditambahkan pada tahap pemeriksaan
+lanjutan bila dibutuhkan.

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartBarSquareIcon, CircleStackIcon, DocumentTextIcon, PencilSquareIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { ChartBarSquareIcon, CircleStackIcon, DocumentArrowUpIcon, DocumentTextIcon, PencilSquareIcon, PlusIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -10,7 +10,7 @@ import { getToken } from "@/lib/auth";
 import { getDashboardSummary } from "@/services/api";
 import type { DashboardSummary } from "@/types/phase2";
 
-const emptySummary: DashboardSummary = { total_brs: 0, draft_brs: 0, total_indicators: 0, total_brs_data: 0 };
+const emptySummary: DashboardSummary = { total_brs: 0, draft_brs: 0, total_indicators: 0, total_brs_data: 0, total_documents: 0 };
 
 export default function DashboardPage() {
   const { user } = useAuthUser();
@@ -26,6 +26,7 @@ export default function DashboardPage() {
     { name: "BRS Draft", value: summary.draft_brs, detail: "Sedang disusun", icon: PencilSquareIcon },
     { name: "Master Indikator", value: summary.total_indicators, detail: "Indikator aktif", icon: CircleStackIcon },
     { name: "Data Indikator", value: summary.total_brs_data, detail: "Data tersimpan", icon: ChartBarSquareIcon },
+    { name: "Dokumen Aktif", value: summary.total_documents, detail: "File terunggah", icon: DocumentArrowUpIcon },
   ];
 
   return (
@@ -36,8 +37,8 @@ export default function DashboardPage() {
           <Link href="/brs/new" className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-[#102a43] hover:bg-cyan-300"><PlusIcon className="h-5 w-5" />Daftarkan BRS</Link>
         </div>
 
-        <h2 className="mt-9 text-lg font-bold text-slate-800">Ringkasan Phase 2</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <h2 className="mt-9 text-lg font-bold text-slate-800">Ringkasan Phase 3</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {cards.map(({ name, value, detail, icon: Icon }) => (
             <article key={name} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/40"><div className="flex items-start justify-between"><div className="grid h-11 w-11 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><Icon className="h-6 w-6" /></div><p className="text-3xl font-bold text-[#102a43]">{value}</p></div><p className="mt-5 font-semibold text-slate-800">{name}</p><p className="mt-1 text-sm text-slate-500">{detail}</p></article>
           ))}

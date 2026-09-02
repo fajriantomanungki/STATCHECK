@@ -47,6 +47,7 @@ class BRSListResponse(BaseModel):
     pjk: UserSummary
     supervisor: UserSummary | None
     jumlah_data: int = 0
+    jumlah_dokumen: int = 0
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -88,3 +89,4 @@ class DashboardSummary(BaseModel):
     draft_brs: int
     total_indicators: int
     total_brs_data: int
+    total_documents: int

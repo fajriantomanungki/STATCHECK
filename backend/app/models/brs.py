@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.models.user import utc_now
 
 if TYPE_CHECKING:
+    from app.models.document import Document
     from app.models.indicator import Indicator
     from app.models.user import User
 
@@ -32,6 +33,9 @@ class BRS(Base):
     supervisor: Mapped["User | None"] = relationship(foreign_keys=[supervisor_id])
     team: Mapped[list["BRSTeam"]] = relationship(back_populates="brs", cascade="all, delete-orphan")
     data: Mapped[list["BRSData"]] = relationship(back_populates="brs", cascade="all, delete-orphan")
+    documents: Mapped[list["Document"]] = relationship(
+        back_populates="brs", cascade="all, delete-orphan"
+    )
 
 
 class BRSTeam(Base):

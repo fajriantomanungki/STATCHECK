@@ -1,5 +1,6 @@
 import type { TokenResponse, User } from "@/types/auth";
 import type { BRS, BRSData, BRSDataForm, BRSForm, DashboardSummary, Indicator, UserOption } from "@/types/phase2";
+import type { BRSDocument, BRSDocumentDetail, DocumentType } from "@/types/phase3";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
@@ -13,10 +14,11 @@ async function parseError(response: Response): Promise<string> {
 }
 
 async function authorizedFetch<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.body && !isFormData ? { "Content-Type": "application/json" } : {}),
       Authorization: `Bearer ${token}`,
       ...options.headers,
     },
@@ -60,3 +62,24 @@ export const getBRSData = (token: string, brsId: string) => authorizedFetch<BRSD
 export const createBRSData = (token: string, brsId: string, payload: BRSDataForm) => authorizedFetch<BRSData>(`/brs/${brsId}/data`, token, { method: "POST", body: JSON.stringify(payload) });
 export const updateBRSData = (token: string, brsId: string, dataId: string, payload: BRSDataForm) => authorizedFetch<BRSData>(`/brs/${brsId}/data/${dataId}`, token, { method: "PUT", body: JSON.stringify(payload) });
 export const deleteBRSData = (token: string, brsId: string, dataId: string) => authorizedFetch<void>(`/brs/${brsId}/data/${dataId}`, token, { method: "DELETE" });
+export const getDocuments = (token: string, brsId: string, includeArchived = false) => authorizedFetch<BRSDocument[]>(`/brs/${brsId}/documents?include_archived=${includeArchived}`, token);
+export const getDocument = (token: string, documentId: string) => authorizedFetch<BRSDocumentDetail>(`/documents/${documentId}`, token);
+export const uploadDocument = (token: string, brsId: string, documentType: DocumentType, file: File) => {
+  const form = new FormData();
+  form.append("document_type", documentType);
+  form.append("file", file);
+  return authorizedFetch<BRSDocumentDetail>(`/brs/${brsId}/documents`, token, { method: "POST", body: form });
+};
+export const reextractDocument = (token: string, documentId: string) => authorizedFetch<BRSDocumentDetail>(`/documents/${documentId}/reextract`, token, { method: "POST" });
+export async function downloadDocument(token: string, document: BRSDocument): Promise<void> {
+  const response = await fetch(`${API_URL}/documents/${document.id}/download`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  const url = URL.createObjectURL(await response.blob());
+  const link = window.document.createElement("a");
+  link.href = url;
+  link.download = document.file_name;
+  link.click();
+  URL.revokeObjectURL(url);
+}

@@ -1,4 +1,4 @@
-# Database STATCHECK — Phase 1
+# Database STATCHECK — Phase 3
 
 Phase 1 memiliki tabel `users` sebagai fondasi autentikasi.
 
@@ -20,3 +20,14 @@ Phase 1 memiliki tabel `users` sebagai fondasi autentikasi.
 - `brs`: registrasi BRS, jadwal rilis, PJK, supervisor, dan status workflow.
 - `brs_team`: anggota tim penyusun pada setiap BRS.
 - `brs_data`: nilai indikator, periode, satuan, analisis, dan fenomena.
+
+## Tabel Phase 3
+
+- `documents`: metadata file, jenis dokumen, versi, checksum, status, hasil
+  ekstraksi, jumlah halaman, dan pengunggah.
+- `document_contents`: teks hasil ekstraksi yang dipisahkan per halaman atau
+  slide agar dapat ditelusuri kembali saat pemeriksaan.
+
+Satu BRS memiliki maksimal satu dokumen aktif untuk setiap jenis. Ketika versi
+baru diunggah, versi aktif sebelumnya berubah menjadi `archived`; file dan
+metadata lama tetap tersedia sebagai audit trail.

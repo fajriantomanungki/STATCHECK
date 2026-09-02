@@ -110,6 +110,7 @@ def test_brs_registration_and_data_entry(client):
         "draft_brs": 1,
         "total_indicators": 1,
         "total_brs_data": 1,
+        "total_documents": 0,
     }
 
 
