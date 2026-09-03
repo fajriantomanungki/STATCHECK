@@ -73,6 +73,7 @@ def result_payload(result: CheckResult) -> dict:
         "expected_value": result.expected_value, "actual_value": result.actual_value,
         "message": result.message, "suggestion": result.suggestion, "status": result.status,
         "page_number": result.page_number, "context_text": result.context_text,
+        "comparison_values": result.comparison_values,
         "reviews": [review_payload(review) for review in result.reviews],
         "created_at": result.created_at, "updated_at": result.updated_at,
     }
@@ -115,7 +116,7 @@ def start_check(brs_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> 
     engine = run_statcheck(active_documents)
     severity_counts = Counter(item.severity for item in engine.findings)
     check_run = CheckRun(
-        brs_id=brs.id, status="completed", engine_version="rules-v2-documents",
+        brs_id=brs.id, status="completed", engine_version="rules-v2.1-indicators",
         total_checks=engine.total_checks, passed_checks=engine.passed_checks,
         error_count=severity_counts["error"], warning_count=severity_counts["warning"],
         suggestion_count=severity_counts["suggestion"],
@@ -131,6 +132,7 @@ def start_check(brs_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> 
             expected_value=item.expected_value, actual_value=item.actual_value,
             message=item.message, suggestion=item.suggestion, status="open",
             page_number=item.page_number, context_text=item.context_text,
+            comparison_values=item.comparison_values,
         )
         for item in engine.findings
     ]

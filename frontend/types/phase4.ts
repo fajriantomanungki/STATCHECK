@@ -29,6 +29,17 @@ export type CheckResult = {
   status: "open" | "resolved" | "confirmed" | "ignored";
   page_number: number | null;
   context_text: string | null;
+  comparison_values: Record<
+    string,
+    {
+      label: string;
+      value: string | null;
+      page_number: number | null;
+      section_label: string | null;
+      context: string | null;
+      document_id: string | null;
+    }
+  > | null;
   reviews: CheckReview[];
   created_at: string;
   updated_at: string;

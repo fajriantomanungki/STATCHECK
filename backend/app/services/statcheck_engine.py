@@ -22,6 +22,27 @@ YEAR_MIN = 1900
 YEAR_MAX = 2100
 CONTEXT_RADIUS = 190
 MAX_LANGUAGE_FINDINGS_PER_RULE = 20
+SEGMENT_BOUNDARY_PATTERN = re.compile(
+    r"[\n\r\u2022\u25aa\u25a0\u25a1\uf0b7\ufffd]+|(?<=[!?])\s+|(?<=\.)\s+(?=[A-ZÀ-Ý])"
+)
+MONTH_NAMES = (
+    "januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|"
+    "november|desember"
+)
+METADATA_PREFIX_PATTERN = re.compile(
+    r"(?:\bno(?:mor)?|\bbrs|\bhalaman|\bpage|\bslide|\btabel|\bgambar|\bbab|"
+    r"\blampiran|\bvolume|\bvol|\bedisi|\bpukul)\.?\s*$",
+    re.IGNORECASE,
+)
+STRONG_INDICATOR_TERMS = {
+    "deflasi", "ekspor", "gini", "impor", "inflasi", "kemiskinan", "ketimpangan",
+    "ntp", "pdrb", "pengangguran", "rlmt", "tpk", "wisman", "wisnus",
+}
+STATISTICAL_CUES = STRONG_INDICATOR_TERMS | {
+    "akomodasi", "andil", "domestik", "harga", "hotel", "indeks", "kamar", "kunjungan",
+    "mancanegara", "menginap", "penduduk", "penghunian", "perjalanan", "pertumbuhan",
+    "produksi", "tamu", "wisatawan",
+}
 
 # Kata umum yang tidak membantu membedakan konteks indikator.
 STOP_WORDS = {
@@ -45,6 +66,7 @@ class NumberMention:
     text: str
     start: int
     end: int
+    context_text: str
     keywords: tuple[str, ...]
     unit: str | None
 
@@ -62,6 +84,7 @@ class Finding:
     suggestion: str | None = None
     page_number: int | None = None
     context_text: str | None = None
+    comparison_values: dict[str, dict[str, str | int | None]] | None = None
 
 
 @dataclass(frozen=True)
@@ -146,20 +169,65 @@ def _unit(text: str, start: int, end: int) -> str | None:
     return min(candidates)[2] if candidates else None
 
 
-def _keywords(text: str, start: int, end: int) -> tuple[str, ...]:
-    line_start = text.rfind("\n", 0, start) + 1
-    line_end = text.find("\n", end)
-    line_end = len(text) if line_end == -1 else line_end
-    if line_end - line_start <= CONTEXT_RADIUS * 2:
-        nearby = text[line_start:line_end]
-    else:
-        nearby = text[max(0, start - CONTEXT_RADIUS):min(len(text), end + CONTEXT_RADIUS)]
-    words = [word.lower() for word in WORD_PATTERN.findall(nearby)]
-    return tuple(dict.fromkeys(word for word in words if word not in STOP_WORDS))
+def _segment(text: str, start: int, end: int) -> str:
+    segment_start = 0
+    segment_end = len(text)
+    for boundary in SEGMENT_BOUNDARY_PATTERN.finditer(text):
+        if boundary.end() <= start:
+            segment_start = boundary.end()
+            continue
+        if boundary.start() >= end:
+            segment_end = boundary.start()
+            break
+    if segment_end - segment_start > CONTEXT_RADIUS * 2:
+        segment_start = max(segment_start, start - CONTEXT_RADIUS)
+        segment_end = min(segment_end, end + CONTEXT_RADIUS)
+    return " ".join(text[segment_start:segment_end].split())
+
+
+def _keywords(context: str) -> tuple[str, ...]:
+    words = [word.lower() for word in WORD_PATTERN.findall(context)]
+    filtered = [word for word in words if word not in STOP_WORDS]
+    lowered = context.lower()
+    aliases = {
+        "wisnus": ("wisatawan nusantara", "perjalanan nusantara"),
+        "wisman": ("wisatawan mancanegara",),
+        "tpk": ("tingkat penghunian kamar",),
+        "rlmt": ("rata-rata lama menginap", "rata rata lama menginap"),
+        "ntp": ("nilai tukar petani",),
+    }
+    for alias, phrases in aliases.items():
+        if any(phrase in lowered for phrase in phrases):
+            filtered.append(alias)
+    return tuple(dict.fromkeys(filtered))
 
 
 def _is_year(raw: str, value: Decimal) -> bool:
     return value == value.to_integral_value() and YEAR_MIN <= int(value) <= YEAR_MAX and len(raw.strip()) == 4
+
+
+def _is_metadata_number(text: str, start: int, end: int, value: Decimal) -> bool:
+    before = text[max(0, start - 28):start]
+    after = text[end:min(len(text), end + 28)]
+    if (start > 0 and text[start - 1] in "/\\") or (end < len(text) and text[end] in "/\\"):
+        return True
+    if METADATA_PREFIX_PATTERN.search(before):
+        return True
+    if value == value.to_integral_value() and 1 <= int(value) <= 31:
+        if re.match(rf"\s*(?:{MONTH_NAMES})\b", after, re.IGNORECASE):
+            return True
+    if re.search(r"(?:tanggal|rilis)\s*$", before, re.IGNORECASE):
+        return True
+    return False
+
+
+def _is_statistical_number(context: str, unit: str | None, keywords: tuple[str, ...]) -> bool:
+    if unit:
+        return True
+    words = set(keywords)
+    if words & STATISTICAL_CUES:
+        return True
+    return bool(re.search(r"\b(?:total|rata-rata|rasio|laju|kontribusi)\b", context, re.IGNORECASE))
 
 
 def _mentions(document: Document) -> list[NumberMention]:
@@ -167,24 +235,29 @@ def _mentions(document: Document) -> list[NumberMention]:
     for content in document.contents:
         for ordinal, match in enumerate(NUMBER_PATTERN.finditer(content.text_content)):
             value = parse_localized_number(match.group())
-            if value is None or _is_year(match.group(), value):
+            if (
+                value is None
+                or _is_year(match.group(), value)
+                or _is_metadata_number(content.text_content, match.start(), match.end(), value)
+            ):
                 continue
-            keywords = _keywords(content.text_content, match.start(), match.end())
-            if not keywords:
+            context = _segment(content.text_content, match.start(), match.end())
+            keywords = _keywords(context)
+            unit = _unit(content.text_content, match.start(), match.end())
+            if not keywords or not _is_statistical_number(context, unit, keywords):
                 continue
             result.append(NumberMention(
                 key=f"{document.id}:{content.page_number}:{ordinal}", raw=match.group(), value=value,
                 page_number=content.page_number, section_label=content.section_label,
-                text=content.text_content, start=match.start(), end=match.end(), keywords=keywords,
-                unit=_unit(content.text_content, match.start(), match.end()),
+                text=content.text_content, start=match.start(), end=match.end(), context_text=context,
+                keywords=keywords, unit=unit,
             ))
     return result
 
 
 def _context(mention: NumberMention, radius: int = 95) -> str:
-    start = max(0, mention.start - radius)
-    end = min(len(mention.text), mention.end + radius)
-    return " ".join(mention.text[start:end].split())
+    del radius
+    return mention.context_text
 
 
 def _units_compatible(left: NumberMention, right: NumberMention) -> bool:
@@ -208,6 +281,8 @@ def _candidate_score(
 
     if len(common) >= 2 and overlap >= Decimal("0.20"):
         return overlap + exact_bonus + unit_bonus
+    if common & STRONG_INDICATOR_TERMS:
+        return overlap + Decimal("0.35") + exact_bonus + unit_bonus
     if len(common) == 1 and left.value == right.value and overlap >= Decimal("0.20"):
         return overlap + exact_bonus + unit_bonus
     if left_count == right_count == 1:
@@ -260,15 +335,6 @@ def _common_label(mentions: list[NumberMention]) -> str:
     return label.title() if label else "Angka pada konteks serupa"
 
 
-def _pair_context(pair: MentionPair) -> str:
-    left_label = DOCUMENT_LABELS[pair.left_document.document_type]
-    right_label = DOCUMENT_LABELS[pair.right_document.document_type]
-    return (
-        f"{left_label} ({pair.left.section_label}): {_context(pair.left)} || "
-        f"{right_label} ({pair.right.section_label}): {_context(pair.right)}"
-    )
-
-
 def _score(total: int, findings: list[Finding]) -> Decimal:
     if total <= 0:
         return Decimal("100.00")
@@ -276,6 +342,24 @@ def _score(total: int, findings: list[Finding]) -> Decimal:
     penalty = sum((weights[item.severity] for item in findings), Decimal("0"))
     score = max(Decimal("0"), Decimal("100") * (Decimal("1") - penalty / Decimal(total)))
     return score.quantize(Decimal("0.01"))
+
+
+def _comparison_values(
+    mentions_by_type: dict[str, tuple[Document, NumberMention]],
+) -> dict[str, dict[str, str | int | None]]:
+    values: dict[str, dict[str, str | int | None]] = {}
+    for document_type, label in DOCUMENT_LABELS.items():
+        item = mentions_by_type.get(document_type)
+        document, mention = item if item else (None, None)
+        values[document_type] = {
+            "label": label,
+            "value": mention.raw if mention else None,
+            "page_number": mention.page_number if mention else None,
+            "section_label": mention.section_label if mention else None,
+            "context": _context(mention) if mention else None,
+            "document_id": str(document.id) if document else None,
+        }
+    return values
 
 
 def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list[Finding], int, int, int]:
@@ -286,23 +370,6 @@ def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list
         all_pairs.extend(_match_pair(
             left_document, mentions_by_document[left_document.id],
             right_document, mentions_by_document[right_document.id],
-        ))
-
-    comparison_findings: list[Finding] = []
-    comparison_passed = 0
-    for pair in all_pairs:
-        if pair.left.value == pair.right.value:
-            comparison_passed += 1
-            continue
-        left_label = DOCUMENT_LABELS[pair.left_document.document_type]
-        right_label = DOCUMENT_LABELS[pair.right_document.document_type]
-        comparison_findings.append(Finding(
-            check_type="cross_document", severity="error", document_id=pair.right_document.id,
-            field_name=_common_label([pair.left, pair.right]), expected_value=pair.left.raw,
-            actual_value=pair.right.raw,
-            message=f"Angka berbeda antara {left_label} dan {right_label} pada konteks yang sama.",
-            suggestion="Periksa kedua sumber, tentukan angka yang benar, lalu samakan dokumennya.",
-            page_number=pair.right.page_number, context_text=_pair_context(pair),
         ))
 
     parent: dict[str, str] = {}
@@ -329,8 +396,10 @@ def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list
         clusters[find(key)].append(item)
 
     coverage_findings: list[Finding] = []
+    comparison_findings: list[Finding] = []
     required_types = set(DOCUMENT_LABELS)
     complete_clusters = 0
+    comparison_passed = 0
     if not all_pairs:
         mention_count = sum(len(items) for items in mentions_by_document.values())
         coverage_findings.append(Finding(
@@ -348,9 +417,55 @@ def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list
             ),
         ))
     for cluster in clusters.values():
-        present_types = {document.document_type for document, _ in cluster}
+        mentions_by_type: dict[str, tuple[Document, NumberMention]] = {}
+        for document, mention in cluster:
+            mentions_by_type.setdefault(document.document_type, (document, mention))
+        present_types = set(mentions_by_type)
+        values = _comparison_values(mentions_by_type)
+        mentions = [mention for _, mention in mentions_by_type.values()]
         if present_types == required_types:
             complete_clusters += 1
+            normalized_values = {mention.value for mention in mentions}
+            if len(normalized_values) == 1:
+                comparison_passed += 1
+                continue
+
+            value_groups: dict[Decimal, list[tuple[Document, NumberMention]]] = defaultdict(list)
+            for document, mention in mentions_by_type.values():
+                value_groups[mention.value].append((document, mention))
+            consensus = max(value_groups.values(), key=len)
+            _, reference_mention = consensus[0]
+            outliers = [
+                (document, mention)
+                for document, mention in mentions_by_type.values()
+                if mention.value != reference_mention.value
+            ]
+            if len(consensus) == 1:
+                _, reference_mention = mentions_by_type["bahan_publikasi"]
+                outliers = [
+                    (document, mention)
+                    for document, mention in mentions_by_type.values()
+                    if document.document_type != "bahan_publikasi"
+                ]
+            target_document, target_mention = outliers[0]
+            actual = " | ".join(
+                f"{DOCUMENT_LABELS[document.document_type]}: {mention.raw}"
+                for document, mention in outliers
+            )
+            evidence = " || ".join(
+                f"{DOCUMENT_LABELS[document_type]} ({mention.section_label}): {_context(mention)}"
+                for document_type in DOCUMENT_LABELS
+                for _, mention in [mentions_by_type[document_type]]
+            )
+            comparison_findings.append(Finding(
+                check_type="cross_document", severity="error", document_id=target_document.id,
+                field_name=_common_label(mentions), expected_value=reference_mention.raw,
+                actual_value=actual,
+                message="Angka pada indikator yang sama berbeda di antara tiga dokumen.",
+                suggestion="Periksa ketiga sumber, tentukan angka yang benar, lalu samakan dokumennya.",
+                page_number=target_mention.page_number, context_text=evidence,
+                comparison_values=values,
+            ))
             continue
         if len(present_types) < 2:
             continue
@@ -358,7 +473,7 @@ def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list
         if len(missing_types) != 1:
             continue
         missing_type = missing_types.pop()
-        shown_values = ", ".join(dict.fromkeys(mention.raw for _, mention in cluster))
+        shown_values = ", ".join(dict.fromkeys(mention.raw for mention in mentions))
         evidence = " || ".join(
             f"{DOCUMENT_LABELS[document.document_type]} ({mention.section_label}): {_context(mention)}"
             for document, mention in cluster
@@ -370,6 +485,7 @@ def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list
             message=f"Konteks angka ditemukan pada dua dokumen, tetapi tidak memperoleh pasangan pada {DOCUMENT_LABELS[missing_type]}.",
             suggestion="Pastikan angka memang tidak perlu dicantumkan atau periksa kembali hasil ekstraksi dokumen yang belum memiliki pasangan.",
             page_number=cluster[0][1].page_number, context_text=evidence,
+            comparison_values=values,
         ))
 
     coverage_total = complete_clusters + len(coverage_findings)
@@ -412,7 +528,7 @@ def run_statcheck(documents: list[Document]) -> EngineResult:
     return EngineResult(
         findings=findings, total_checks=total, passed_checks=passed,
         # Nama kolom dipertahankan agar database lama tetap kompatibel. Mulai
-        # rules-v2-documents nilainya adalah skor kelengkapan tiga dokumen.
+        # rules-v2.1-indicators nilainya adalah skor kelengkapan tiga dokumen.
         data_consistency_score=_score(coverage_total, coverage_findings),
         cross_document_score=_score(comparison_total, comparison_findings),
         language_score=_score(language_total, language_findings),

@@ -112,6 +112,24 @@ function FindingCard({
   const severity = severityStyle[finding.severity];
   const Icon = severity.icon;
   const latestReview = finding.reviews.at(-1);
+  const comparisonEntries = finding.comparison_values
+    ? ["bahan_publikasi", "bahan_paparan", "narasi_pimpinan"].map(
+        (documentType) => [
+          documentType,
+          finding.comparison_values?.[documentType],
+        ] as const,
+      )
+    : [];
+  const valueCounts = comparisonEntries.reduce<Record<string, number>>(
+    (counts, [, item]) => {
+      if (item?.value) counts[item.value] = (counts[item.value] || 0) + 1;
+      return counts;
+    },
+    {},
+  );
+  const consensusValue = Object.entries(valueCounts).sort(
+    (left, right) => right[1] - left[1],
+  )[0];
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
@@ -156,7 +174,44 @@ function FindingCard({
         </span>
       </div>
 
-      {(finding.expected_value || finding.actual_value) && (
+      {comparisonEntries.length > 0 ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          {comparisonEntries.map(([documentType, item]) => {
+            const isConsensus = Boolean(
+              item?.value &&
+                consensusValue?.[1] >= 2 &&
+                item.value === consensusValue[0],
+            );
+            const color = !item?.value
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : isConsensus
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : finding.check_type === "cross_document"
+                  ? "border-red-200 bg-red-50 text-red-900"
+                  : "border-cyan-200 bg-cyan-50 text-cyan-900";
+            return (
+              <div key={documentType} className={`rounded-xl border p-4 ${color}`}>
+                <p className="text-[11px] font-bold uppercase tracking-wide">
+                  {item?.label || documentLabel[documentType] || documentType}
+                </p>
+                <p className="mt-2 text-xl font-bold">
+                  {item?.value || "Tidak ditemukan"}
+                </p>
+                {item?.section_label && (
+                  <p className="mt-1 text-xs opacity-70">
+                    {item.section_label}
+                  </p>
+                )}
+                {item?.context && (
+                  <p className="mt-3 text-xs leading-5 opacity-80">
+                    “{item.context}”
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (finding.expected_value || finding.actual_value) && (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl bg-cyan-50 p-3">
             <p className="text-[11px] font-bold uppercase text-cyan-700">
@@ -176,7 +231,7 @@ function FindingCard({
           </div>
         </div>
       )}
-      {finding.context_text && (
+      {!finding.comparison_values && finding.context_text && (
         <div className="mt-4 rounded-xl border-l-4 border-slate-300 bg-slate-50 p-3 text-sm italic leading-6 text-slate-600">
           “{finding.context_text}”
         </div>

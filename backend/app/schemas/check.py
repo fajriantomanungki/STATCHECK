@@ -38,6 +38,7 @@ class CheckResultResponse(BaseModel):
     status: str
     page_number: int | None
     context_text: str | None
+    comparison_values: dict[str, dict[str, str | int | None]] | None
     reviews: list[CheckReviewResponse]
     created_at: datetime
     updated_at: datetime

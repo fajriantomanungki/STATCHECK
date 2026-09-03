@@ -77,11 +77,13 @@ Mesin pemeriksaan Phase 8 menyediakan:
 
 - Pemeriksaan langsung terhadap tiga dokumen aktif tanpa menjadikan data input sebagai acuan
 - Normalisasi angka Indonesia seperti `1.007,74`, `52,31`, dan `27.073`
+- Penyaringan nomor BRS, kode dokumen, tanggal rilis, nomor halaman, dan metadata lain
 - Pencocokan angka berdasarkan kemiripan konteks indikator dan satuan
 - Perbandingan BRS/Bahan Publikasi ↔ Bahan Paparan, BRS/Bahan Publikasi ↔ Narasi
   Pimpinan, serta Bahan Paparan ↔ Narasi Pimpinan
 - Peringatan apabila satu konteks angka ditemukan pada dua dokumen tetapi tidak
   memperoleh pasangan pada dokumen ketiga
+- Satu temuan indikator menampilkan nilai dari ketiga dokumen secara berdampingan
 - Pemeriksaan bahasa berbasis aturan untuk spasi, tanda baca, kata berulang,
   format persen, nama bulan, serta beberapa frasa tidak efektif
 - Skor kelengkapan tiga dokumen, konsistensi angka, bahasa, dan skor keseluruhan
@@ -89,7 +91,7 @@ Mesin pemeriksaan Phase 8 menyediakan:
 - Tindak lanjut PJK: sudah diperbaiki, data dikonfirmasi benar, atau diabaikan
 - Riwayat pemeriksaan dan audit trail review
 
-Mesin `rules-v2-documents` bekerja sepenuhnya lokal. Hasilnya merupakan alat bantu quality
+Mesin `rules-v2.1-indicators` bekerja sepenuhnya lokal. Hasilnya merupakan alat bantu quality
 control; keputusan akhir tetap dilakukan PJK.
 
 ## Phase 5 — Approval Workflow
