@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     initial_supervisor_nik: str = "supervisor"
     initial_supervisor_name: str = "Supervisor STATCHECK"
     initial_supervisor_password: str = "Supervisor123!"
+    initial_ka_bps_nik: str = "kabps"
+    initial_ka_bps_name: str = "Kepala BPS"
+    initial_ka_bps_password: str = "KaBPS123!"
     upload_dir: str = "uploads"
     max_upload_size_mb: int = 25
 

@@ -2,6 +2,7 @@ import type { TokenResponse, User } from "@/types/auth";
 import type { BRS, BRSData, BRSDataForm, BRSForm, DashboardSummary, Indicator, UserOption } from "@/types/phase2";
 import type { BRSDocument, BRSDocumentDetail, DocumentType } from "@/types/phase3";
 import type { CheckResult, CheckRun, CheckRunDetail, ReviewAction } from "@/types/phase4";
+import type { ApprovalWorkflow } from "@/types/phase5";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
@@ -88,3 +89,18 @@ export const startCheck = (token: string, brsId: string) => authorizedFetch<Chec
 export const getCheckRuns = (token: string, brsId: string) => authorizedFetch<CheckRun[]>(`/brs/${brsId}/checks`, token);
 export const getLatestCheck = (token: string, brsId: string) => authorizedFetch<CheckRunDetail>(`/brs/${brsId}/checks/latest`, token);
 export const reviewCheck = (token: string, resultId: string, action: ReviewAction, note: string) => authorizedFetch<CheckResult>(`/checks/${resultId}/review`, token, { method: "POST", body: JSON.stringify({ action, note: note || null }) });
+
+const approvalAction = (token: string, brsId: string, path: string, note?: string) =>
+  authorizedFetch<ApprovalWorkflow>(`/brs/${brsId}/${path}`, token, {
+    method: "POST",
+    ...(path.endsWith("start-review") ? {} : { body: JSON.stringify({ note: note?.trim() || null }) }),
+  });
+
+export const getApprovalWorkflow = (token: string, brsId: string) => authorizedFetch<ApprovalWorkflow>(`/brs/${brsId}/approval`, token);
+export const submitSupervisor = (token: string, brsId: string, note?: string) => approvalAction(token, brsId, "submit-supervisor", note);
+export const startSupervisorReview = (token: string, brsId: string) => approvalAction(token, brsId, "supervisor/start-review");
+export const supervisorApprove = (token: string, brsId: string, note?: string) => approvalAction(token, brsId, "supervisor/approve", note);
+export const supervisorRevision = (token: string, brsId: string, note: string) => approvalAction(token, brsId, "supervisor/revision", note);
+export const submitKaBps = (token: string, brsId: string, note?: string) => approvalAction(token, brsId, "submit-ka-bps", note);
+export const kaBpsApprove = (token: string, brsId: string, note?: string) => approvalAction(token, brsId, "ka-bps/approve", note);
+export const kaBpsRevision = (token: string, brsId: string, note: string) => approvalAction(token, brsId, "ka-bps/revision", note);

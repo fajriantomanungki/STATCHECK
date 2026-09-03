@@ -1,4 +1,4 @@
-# API STATCHECK — Phase 4
+# API STATCHECK — Phase 5
 
 Base URL: `/api/v1`
 
@@ -27,6 +27,14 @@ Base URL: `/api/v1`
 | GET | `/check-runs/{id}` | Detail satu pemeriksaan | Sesuai akses BRS |
 | GET | `/checks/{id}` | Detail satu temuan | Sesuai akses BRS |
 | POST | `/checks/{id}/review` | Simpan tindak lanjut PJK | PJK/Admin |
+| GET | `/brs/{id}/approval` | Ringkasan dan audit trail persetujuan | Sesuai akses BRS |
+| POST | `/brs/{id}/submit-supervisor` | PJK mengirim BRS ke Supervisor | PJK/Admin |
+| POST | `/brs/{id}/supervisor/start-review` | Mulai pemeriksaan Supervisor | Supervisor/Admin |
+| POST | `/brs/{id}/supervisor/approve` | Setujui BRS pada level Supervisor | Supervisor/Admin |
+| POST | `/brs/{id}/supervisor/revision` | Kembalikan BRS untuk revisi | Supervisor/Admin |
+| POST | `/brs/{id}/submit-ka-bps` | Kirim BRS yang disetujui ke Kepala BPS | PJK/Supervisor/Admin |
+| POST | `/brs/{id}/ka-bps/approve` | Setujui BRS menjadi siap rilis | Kepala BPS/Admin |
+| POST | `/brs/{id}/ka-bps/revision` | Kembalikan BRS untuk revisi | Kepala BPS/Admin |
 
 Dokumentasi interaktif tersedia pada `/docs` ketika environment bukan production.
 
@@ -36,3 +44,7 @@ Nilai `document_type` yang valid: `bahan_publikasi`, `bahan_paparan`, dan
 
 Review temuan menerima JSON dengan `action` bernilai `fixed`,
 `confirmed_correct`, atau `ignored`, serta `note` opsional.
+
+Endpoint keputusan menerima JSON `{"note": "..."}`. Catatan bersifat opsional
+untuk pengiriman dan persetujuan, tetapi wajib untuk aksi `revision`. Setiap
+endpoint hanya menerima status asal yang tepat agar tahapan tidak dapat dilompati.

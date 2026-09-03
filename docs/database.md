@@ -1,4 +1,4 @@
-# Database STATCHECK — Phase 4
+# Database STATCHECK — Phase 5
 
 Phase 1 memiliki tabel `users` sebagai fondasi autentikasi.
 
@@ -41,3 +41,20 @@ metadata lama tetap tersedia sebagai audit trail.
 
 Pemeriksaan ulang membuat `check_runs` baru sehingga hasil sebelumnya tidak
 ditimpa dan tetap dapat digunakan sebagai riwayat.
+
+## Tabel Phase 5
+
+- `approvals`: audit trail keputusan PJK, Supervisor, dan Kepala BPS.
+
+Setiap baris menyimpan `brs_id`, pengguna, level persetujuan, aksi, status asal,
+status tujuan, catatan, dan waktu keputusan. Riwayat tidak ditimpa ketika BRS
+dikembalikan atau dikirim ulang.
+
+Status workflow Phase 5:
+
+1. `pjk_review`
+2. `pjk_submitted`
+3. `supervisor_review`
+4. `supervisor_approved` atau `supervisor_revision`
+5. `ka_bps_review`
+6. `release_ready` atau `ka_bps_revision`

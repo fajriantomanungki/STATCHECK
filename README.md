@@ -87,3 +87,22 @@ Phase 4 menyediakan:
 
 Mesin `rules-v1` bekerja sepenuhnya lokal. Hasilnya merupakan alat bantu quality
 control; keputusan akhir tetap dilakukan PJK.
+
+## Phase 5 — Approval Workflow
+
+Phase 5 menyediakan:
+
+- Pengiriman hasil pemeriksaan PJK ke Supervisor
+- Pemeriksaan, persetujuan, atau pengembalian revisi oleh Supervisor
+- Persetujuan akhir atau pengembalian revisi oleh Kepala BPS
+- Validasi role dan status pada setiap perubahan workflow
+- Catatan wajib untuk setiap keputusan revisi
+- Audit trail lengkap berisi pengguna, keputusan, status asal/tujuan, dan waktu
+- Status akhir `release_ready` untuk BRS yang telah disetujui Kepala BPS
+
+Akun development Kepala BPS tersedia menggunakan nilai
+`INITIAL_KA_BPS_NIK` dan `INITIAL_KA_BPS_PASSWORD` pada `.env.example`.
+
+Temuan STATCHECK harus seluruhnya ditindaklanjuti sebelum PJK dapat mengirim BRS
+ke Supervisor. Setelah BRS dikembalikan, PJK memperbaiki data/dokumen dan
+menjalankan ulang STATCHECK untuk memulai kembali alur persetujuan.

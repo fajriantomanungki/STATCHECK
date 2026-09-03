@@ -98,7 +98,7 @@ export default function CheckingPage() {
     && (statusFilter === "all" || item.status === statusFilter)
   ), [run, typeFilter, severityFilter, statusFilter]);
   const openCount = run?.results.filter((item) => item.status === "open").length || 0;
-  const ready = Boolean(brs && brs.jumlah_data > 0 && brs.jumlah_dokumen === 3 && ["documents_uploaded", "pjk_review"].includes(brs.status));
+  const ready = Boolean(brs && brs.jumlah_data > 0 && brs.jumlah_dokumen === 3 && ["documents_uploaded", "pjk_review", "supervisor_revision", "ka_bps_revision"].includes(brs.status));
 
   async function runCheck() {
     const token = getToken();
@@ -132,6 +132,7 @@ export default function CheckingPage() {
       {!ready && brs && <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Pemeriksaan memerlukan minimal satu data indikator dan tiga dokumen yang berhasil diekstrak. Saat ini: {brs.jumlah_data} data dan {brs.jumlah_dokumen}/3 dokumen.</p>}
       {error && <p className="mt-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
       {message && <p className="mt-5 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700">{message}</p>}
+      {run && openCount === 0 && brs?.status === "pjk_review" && <div className="mt-5 flex flex-col justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center"><div><p className="font-semibold text-emerald-800">Semua temuan telah ditindaklanjuti.</p><p className="mt-1 text-sm text-emerald-700">BRS siap masuk ke alur persetujuan Phase 5.</p></div><Link href={`/brs/${id}/approval`} className="shrink-0 rounded-xl bg-emerald-700 px-5 py-3 text-center text-sm font-semibold text-white">Lanjut ke Persetujuan</Link></div>}
 
       {!run ? <section className="mt-8 grid min-h-64 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"><div><ShieldCheckIcon className="mx-auto h-14 w-14 text-slate-300" /><h2 className="mt-4 text-lg font-bold text-slate-700">Belum ada hasil pemeriksaan</h2><p className="mt-2 max-w-md text-sm leading-6 text-slate-500">Lengkapi data dan dokumen, lalu tekan Mulai Pemeriksaan untuk membandingkan angka dan memeriksa bahasa.</p></div></section> : <>
         <section className="mt-7 grid gap-5 xl:grid-cols-[1.3fr_2fr]">

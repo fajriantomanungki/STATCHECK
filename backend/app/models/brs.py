@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.models.user import utc_now
 
 if TYPE_CHECKING:
+    from app.models.approval import Approval
     from app.models.check import CheckRun
     from app.models.document import Document
     from app.models.indicator import Indicator
@@ -39,6 +40,9 @@ class BRS(Base):
     )
     check_runs: Mapped[list["CheckRun"]] = relationship(
         back_populates="brs", cascade="all, delete-orphan"
+    )
+    approvals: Mapped[list["Approval"]] = relationship(
+        back_populates="brs", cascade="all, delete-orphan", order_by="Approval.created_at"
     )
 
 

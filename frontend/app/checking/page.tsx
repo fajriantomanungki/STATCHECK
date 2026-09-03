@@ -11,7 +11,10 @@ import type { BRS } from "@/types/phase2";
 
 const statusLabel: Record<string, string> = {
   draft: "Draft", data_completed: "Data Lengkap", documents_uploaded: "Siap Diperiksa",
-  checking: "Sedang Diperiksa", pjk_review: "Review PJK",
+  checking: "Sedang Diperiksa", pjk_review: "Review PJK", pjk_submitted: "Dikirim ke Supervisor",
+  supervisor_review: "Review Supervisor", supervisor_revision: "Revisi Supervisor",
+  supervisor_approved: "Disetujui Supervisor", ka_bps_review: "Review Kepala BPS",
+  ka_bps_revision: "Revisi Kepala BPS", release_ready: "Siap Rilis",
 };
 
 export default function CheckingCenterPage() {
@@ -42,7 +45,7 @@ export default function CheckingCenterPage() {
                   <td className="px-6 py-4"><span className="inline-flex items-center gap-1.5 text-slate-600"><ChartBarSquareIcon className="h-4 w-4" />{item.jumlah_data}</span></td>
                   <td className="px-6 py-4"><span className="inline-flex items-center gap-1.5 text-slate-600"><DocumentTextIcon className="h-4 w-4" />{item.jumlah_dokumen}/3</span></td>
                   <td className="px-6 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.status === "pjk_review" ? "bg-cyan-50 text-cyan-700" : ready ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{statusLabel[item.status] || item.status}</span></td>
-                  <td className="px-6 py-4 text-right"><Link href={`/brs/${item.id}/checking`} className="inline-flex items-center gap-2 rounded-lg bg-[#102a43] px-4 py-2 text-xs font-semibold text-white"><CheckCircleIcon className="h-4 w-4" />{item.status === "pjk_review" ? "Lihat Hasil" : "Periksa"}</Link></td>
+                  <td className="px-6 py-4 text-right"><Link href={item.status === "documents_uploaded" || item.status === "pjk_review" || item.status.includes("revision") ? `/brs/${item.id}/checking` : `/brs/${item.id}/approval`} className="inline-flex items-center gap-2 rounded-lg bg-[#102a43] px-4 py-2 text-xs font-semibold text-white"><CheckCircleIcon className="h-4 w-4" />{item.status === "documents_uploaded" ? "Periksa" : item.status === "pjk_review" || item.status.includes("revision") ? "Lihat Hasil" : "Persetujuan"}</Link></td>
                 </tr>;
               })}
               {!items.length && <tr><td colSpan={5} className="px-6 py-14 text-center text-slate-400">Belum ada BRS untuk diperiksa.</td></tr>}

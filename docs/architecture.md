@@ -1,4 +1,4 @@
-# Arsitektur STATCHECK — Phase 4
+# Arsitektur STATCHECK — Phase 5
 
 ```text
 Browser → Next.js (3000) → FastAPI (8000) → PostgreSQL (5432)
@@ -40,3 +40,16 @@ Teks Tiap Halaman      → Aturan Bahasa
 
 Mesin pemeriksaan tidak memanggil layanan AI eksternal. Normalisasi angka dan
 aturan bahasa dibuat deterministik agar hasil dapat diuji dan dijelaskan.
+
+Phase 5 menambahkan state machine persetujuan:
+
+```text
+PJK Review → Supervisor Review → Kepala BPS Review → Release Ready
+                    │                    │
+                    └─ Revisi ke PJK ────┘
+```
+
+Perubahan status hanya dilakukan melalui endpoint aksi yang spesifik. Backend
+memvalidasi role, pengguna yang ditetapkan pada BRS, status asal, kelengkapan
+tindak lanjut temuan, serta kewajiban catatan revisi. Setiap transisi disimpan
+ke tabel `approvals` sebelum ditampilkan pada timeline frontend.
