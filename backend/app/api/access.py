@@ -5,7 +5,7 @@ from app.models.user import User
 
 
 FULL_ACCESS_ROLES = {"admin", "ka_bps", "humas"}
-EDITABLE_BRS_STATUSES = {"draft", "data_completed", "documents_uploaded"}
+EDITABLE_BRS_STATUSES = {"draft", "data_completed", "documents_uploaded", "pjk_review"}
 
 
 def can_view_brs(user: User, brs: BRS) -> bool:

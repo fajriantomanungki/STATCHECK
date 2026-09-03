@@ -1,4 +1,4 @@
-# API STATCHECK — Phase 3
+# API STATCHECK — Phase 4
 
 Base URL: `/api/v1`
 
@@ -21,9 +21,18 @@ Base URL: `/api/v1`
 | GET | `/documents/{id}` | Metadata dan teks hasil ekstraksi | Sesuai akses BRS |
 | GET | `/documents/{id}/download` | Unduh file asli | Sesuai akses BRS |
 | POST | `/documents/{id}/reextract` | Jalankan ulang ekstraksi teks | PJK/Admin |
+| POST | `/brs/{id}/check` | Jalankan pemeriksaan otomatis | PJK/Admin |
+| GET | `/brs/{id}/checks` | Riwayat pemeriksaan BRS | Sesuai akses BRS |
+| GET | `/brs/{id}/checks/latest` | Hasil pemeriksaan terbaru | Sesuai akses BRS |
+| GET | `/check-runs/{id}` | Detail satu pemeriksaan | Sesuai akses BRS |
+| GET | `/checks/{id}` | Detail satu temuan | Sesuai akses BRS |
+| POST | `/checks/{id}/review` | Simpan tindak lanjut PJK | PJK/Admin |
 
 Dokumentasi interaktif tersedia pada `/docs` ketika environment bukan production.
 
 Upload menggunakan `multipart/form-data` dengan field `document_type` dan `file`.
 Nilai `document_type` yang valid: `bahan_publikasi`, `bahan_paparan`, dan
 `narasi_pimpinan`.
+
+Review temuan menerima JSON dengan `action` bernilai `fixed`,
+`confirmed_correct`, atau `ignored`, serta `note` opsional.

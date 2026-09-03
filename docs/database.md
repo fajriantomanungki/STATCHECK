@@ -1,4 +1,4 @@
-# Database STATCHECK — Phase 3
+# Database STATCHECK — Phase 4
 
 Phase 1 memiliki tabel `users` sebagai fondasi autentikasi.
 
@@ -31,3 +31,13 @@ Phase 1 memiliki tabel `users` sebagai fondasi autentikasi.
 Satu BRS memiliki maksimal satu dokumen aktif untuk setiap jenis. Ketika versi
 baru diunggah, versi aktif sebelumnya berubah menjadi `archived`; file dan
 metadata lama tetap tersedia sebagai audit trail.
+
+## Tabel Phase 4
+
+- `check_runs`: satu eksekusi pemeriksaan, ringkasan jumlah hasil, dan empat skor.
+- `check_results`: detail temuan, nilai acuan/aktual, dokumen, halaman, konteks,
+  saran, tingkat keparahan, dan status tindak lanjut.
+- `check_reviews`: audit trail tindakan, catatan, pengguna, dan waktu review PJK.
+
+Pemeriksaan ulang membuat `check_runs` baru sehingga hasil sebelumnya tidak
+ditimpa dan tetap dapat digunakan sebagai riwayat.

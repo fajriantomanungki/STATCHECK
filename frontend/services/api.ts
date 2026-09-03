@@ -1,6 +1,7 @@
 import type { TokenResponse, User } from "@/types/auth";
 import type { BRS, BRSData, BRSDataForm, BRSForm, DashboardSummary, Indicator, UserOption } from "@/types/phase2";
 import type { BRSDocument, BRSDocumentDetail, DocumentType } from "@/types/phase3";
+import type { CheckResult, CheckRun, CheckRunDetail, ReviewAction } from "@/types/phase4";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
@@ -83,3 +84,7 @@ export async function downloadDocument(token: string, document: BRSDocument): Pr
   link.click();
   URL.revokeObjectURL(url);
 }
+export const startCheck = (token: string, brsId: string) => authorizedFetch<CheckRunDetail>(`/brs/${brsId}/check`, token, { method: "POST" });
+export const getCheckRuns = (token: string, brsId: string) => authorizedFetch<CheckRun[]>(`/brs/${brsId}/checks`, token);
+export const getLatestCheck = (token: string, brsId: string) => authorizedFetch<CheckRunDetail>(`/brs/${brsId}/checks/latest`, token);
+export const reviewCheck = (token: string, resultId: string, action: ReviewAction, note: string) => authorizedFetch<CheckResult>(`/checks/${resultId}/review`, token, { method: "POST", body: JSON.stringify({ action, note: note || null }) });

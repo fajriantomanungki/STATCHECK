@@ -8,7 +8,7 @@ const items = [
   { name: "Dashboard", icon: HomeIcon, href: "/dashboard" },
   { name: "Berita Resmi Statistik", icon: DocumentTextIcon, href: "/brs" },
   { name: "Master Indikator", icon: CircleStackIcon, href: "/indicators" },
-  { name: "Pemeriksaan", icon: ChartBarSquareIcon, disabled: true },
+  { name: "Pemeriksaan", icon: ChartBarSquareIcon, href: "/checking" },
   { name: "Release Center", icon: RocketLaunchIcon, disabled: true },
 ];
 
@@ -25,7 +25,7 @@ export function Sidebar() {
           return href ? <Link key={name} href={href} className={className}>{content}</Link> : <div key={name} className={className}>{content}</div>;
         })}
       </nav>
-      <div className="mt-12 rounded-xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-slate-400">Phase 2 aktif<br /><span className="text-slate-200">BRS & Master Indikator</span></div>
+      <div className="mt-12 rounded-xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-slate-400">Phase 4 aktif<br /><span className="text-slate-200">Automatic Check & PJK Review</span></div>
     </aside>
   );
 }

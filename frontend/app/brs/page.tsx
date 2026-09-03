@@ -9,7 +9,7 @@ import { getToken } from "@/lib/auth";
 import { getBRSList } from "@/services/api";
 import type { BRS } from "@/types/phase2";
 
-const statusLabel: Record<string, string> = { draft: "Draft", data_completed: "Data Lengkap", documents_uploaded: "Dokumen Lengkap" };
+const statusLabel: Record<string, string> = { draft: "Draft", data_completed: "Data Lengkap", documents_uploaded: "Dokumen Lengkap", checking: "Pemeriksaan Sistem", pjk_review: "Pemeriksaan PJK" };
 
 export default function BRSPage() {
   const [items, setItems] = useState<BRS[]>([]);
@@ -26,7 +26,7 @@ export default function BRSPage() {
   return (
     <AppShell title="Berita Resmi Statistik">
       <div className="p-6 lg:p-10">
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="text-sm font-semibold uppercase tracking-widest text-cyan-700">Phase 3</p><h1 className="mt-2 text-3xl font-bold text-slate-900">Daftar BRS</h1><p className="mt-2 text-slate-500">Kelola registrasi, data indikator, dan dokumen Berita Resmi Statistik.</p></div><Link href="/brs/new" className="flex items-center justify-center gap-2 rounded-xl bg-[#102a43] px-5 py-3 font-semibold text-white"><PlusIcon className="h-5 w-5" />Tambah BRS</Link></div>
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="text-sm font-semibold uppercase tracking-widest text-cyan-700">Phase 4</p><h1 className="mt-2 text-3xl font-bold text-slate-900">Daftar BRS</h1><p className="mt-2 text-slate-500">Kelola registrasi, data, dokumen, dan pemeriksaan Berita Resmi Statistik.</p></div><Link href="/brs/new" className="flex items-center justify-center gap-2 rounded-xl bg-[#102a43] px-5 py-3 font-semibold text-white"><PlusIcon className="h-5 w-5" />Tambah BRS</Link></div>
         <form onSubmit={submit} className="mt-7 flex max-w-xl rounded-xl border border-slate-200 bg-white p-2 shadow-sm"><MagnifyingGlassIcon className="ml-2 h-5 w-5 self-center text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} className="min-w-0 flex-1 px-3 py-2 outline-none" placeholder="Cari nama BRS..." /><button className="rounded-lg bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800">Cari</button></form>
         {error && <p className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
