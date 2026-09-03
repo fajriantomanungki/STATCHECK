@@ -41,10 +41,12 @@ Teks Tiap Halaman ──────┴──> Aturan Bahasa
 
 Mesin pemeriksaan tidak menggunakan tabel data input sebagai nilai acuan dan
 tidak memanggil layanan AI eksternal. Nomor dokumen dan tanggal disaring sebelum
-angka dikelompokkan berdasarkan konteks indikator. Setiap kelompok menyimpan
-nilai BRS, bahan paparan, dan narasi pimpinan secara terstruktur. Normalisasi
-angka, pencocokan konteks, dan aturan bahasa dibuat deterministik agar hasil
-dapat diuji dan dijelaskan.
+angka dikelompokkan berdasarkan konteks indikator dan periode terdekat. Hanya
+kelompok yang muncul pada minimal dua dokumen yang dibandingkan; indikator yang
+hanya muncul sekali diabaikan. Setiap temuan menyimpan nilai dan kutipan dari dua
+atau tiga dokumen yang benar-benar dibandingkan. Normalisasi angka, pencocokan
+konteks/periode, dan aturan bahasa dibuat deterministik agar hasil dapat diuji
+dan dijelaskan.
 
 Phase 5 menambahkan state machine persetujuan:
 

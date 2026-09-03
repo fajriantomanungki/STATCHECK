@@ -85,7 +85,7 @@ def test_automatic_check_and_pjk_review(client):
     assert checked.status_code == 201, checked.text
     result = checked.json()
     assert result["status"] == "completed"
-    assert result["engine_version"] == "rules-v2.1-indicators"
+    assert result["engine_version"] == "rules-v2.2-indicator-periods"
     assert result["total_checks"] > 0
     assert result["error_count"] >= 1
     assert result["suggestion_count"] >= 2
@@ -127,7 +127,7 @@ def test_automatic_check_and_pjk_review(client):
     assert len(history.json()) == 2
 
 
-def test_check_warns_when_context_is_present_in_only_two_documents(client):
+def test_equal_indicator_in_two_documents_does_not_require_third_document(client):
     headers = auth_headers(client)
     brs = client.post(
         "/api/v1/brs",
@@ -156,17 +156,14 @@ def test_check_warns_when_context_is_present_in_only_two_documents(client):
 
     checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
     assert checked.status_code == 201, checked.text
-    coverage = [
+    comparison_findings = [
         finding for finding in checked.json()["results"]
-        if finding["check_type"] == "document_coverage"
+        if finding["check_type"] in {"document_coverage", "cross_document"}
     ]
-    assert len(coverage) == 1
-    assert "Narasi Pimpinan" in coverage[0]["message"]
-    assert coverage[0]["brs_data_id"] is None
-    assert coverage[0]["comparison_values"]["narasi_pimpinan"]["value"] is None
+    assert comparison_findings == []
 
 
-def test_check_does_not_report_perfect_score_when_no_numbers_can_be_compared(client):
+def test_check_ignores_documents_without_comparable_indicator_numbers(client):
     headers = auth_headers(client)
     brs = client.post(
         "/api/v1/brs",
@@ -197,9 +194,11 @@ def test_check_does_not_report_perfect_score_when_no_numbers_can_be_compared(cli
     checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
     assert checked.status_code == 201, checked.text
     result = checked.json()
-    assert result["warning_count"] >= 1
-    assert float(result["data_consistency_score"]) < 100
-    assert any("Tidak ada angka" in item["message"] for item in result["results"])
+    assert not any(
+        item["check_type"] in {"document_coverage", "cross_document"}
+        for item in result["results"]
+    )
+    assert float(result["data_consistency_score"]) == 100
 
 
 def test_document_number_and_release_date_are_not_treated_as_indicators(client):
@@ -303,4 +302,57 @@ def test_multiple_indicators_are_matched_by_context_not_document_order(client):
     assert comparison["bahan_publikasi"]["value"] == "51,95"
     assert comparison["bahan_paparan"]["value"] == "51,95"
     assert comparison["narasi_pimpinan"]["value"] == "51,59"
-    assert "Tpk" in errors[0]["field_name"]
+    assert "TPK" in errors[0]["field_name"]
+
+
+def test_indicator_is_matched_by_name_and_same_period(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "TPK Januari dan Februari 2026",
+            "waktu_rilis": "2026-03-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": (
+            "TPK hotel bintang bulan Januari 2026 adalah 15 persen.\n"
+            "TPK hotel bintang bulan Februari 2026 adalah 20 persen.\n"
+            "Inflasi Januari 2026 sebesar 0,25 persen."
+        ),
+        "bahan_paparan": (
+            "TPK Februari 2026 tercatat 20 persen.\n"
+            "TPK Januari 2026 tercatat 18 persen."
+        ),
+        "narasi_pimpinan": (
+            "Pada Februari 2026, TPK hotel bintang sebesar 20 persen."
+        ),
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    errors = [
+        item for item in checked.json()["results"]
+        if item["check_type"] == "cross_document"
+    ]
+    assert len(errors) == 1
+    january = errors[0]
+    assert january["field_name"] == "TPK • Januari 2026"
+    assert set(january["comparison_values"]) == {"bahan_publikasi", "bahan_paparan"}
+    assert january["comparison_values"]["bahan_publikasi"]["value"] == "15"
+    assert january["comparison_values"]["bahan_paparan"]["value"] == "18"
+    assert "TPK hotel bintang bulan Januari 2026" in january["comparison_values"]["bahan_publikasi"]["context"]
+    assert "TPK Januari 2026" in january["comparison_values"]["bahan_paparan"]["context"]
+    assert all("Inflasi" not in item.get("field_name", "") for item in errors)

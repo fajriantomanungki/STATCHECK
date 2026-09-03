@@ -98,27 +98,25 @@ function ScoreCard({
 
 function FindingCard({
   finding,
-  note,
   busy,
-  onNote,
   onReview,
 }: {
   finding: CheckResult;
-  note: string;
   busy: boolean;
-  onNote: (value: string) => void;
   onReview: (action: ReviewAction) => void;
 }) {
   const severity = severityStyle[finding.severity];
   const Icon = severity.icon;
   const latestReview = finding.reviews.at(-1);
   const comparisonEntries = finding.comparison_values
-    ? ["bahan_publikasi", "bahan_paparan", "narasi_pimpinan"].map(
-        (documentType) => [
-          documentType,
-          finding.comparison_values?.[documentType],
-        ] as const,
-      )
+    ? ["bahan_publikasi", "bahan_paparan", "narasi_pimpinan"]
+        .map(
+          (documentType) => [
+            documentType,
+            finding.comparison_values?.[documentType],
+          ] as const,
+        )
+        .filter((entry) => Boolean(entry[1]?.value))
     : [];
   const valueCounts = comparisonEntries.reduce<Record<string, number>>(
     (counts, [, item]) => {
@@ -182,9 +180,7 @@ function FindingCard({
                 consensusValue?.[1] >= 2 &&
                 item.value === consensusValue[0],
             );
-            const color = !item?.value
-              ? "border-amber-200 bg-amber-50 text-amber-900"
-              : isConsensus
+            const color = isConsensus
                 ? "border-emerald-200 bg-emerald-50 text-emerald-900"
                 : finding.check_type === "cross_document"
                   ? "border-red-200 bg-red-50 text-red-900"
@@ -195,7 +191,7 @@ function FindingCard({
                   {item?.label || documentLabel[documentType] || documentType}
                 </p>
                 <p className="mt-2 text-xl font-bold">
-                  {item?.value || "Tidak ditemukan"}
+                  {item?.value}
                 </p>
                 {item?.section_label && (
                   <p className="mt-1 text-xs opacity-70">
@@ -244,14 +240,7 @@ function FindingCard({
 
       {finding.status === "open" ? (
         <div className="mt-5 border-t border-slate-100 pt-4">
-          <textarea
-            value={note}
-            onChange={(event) => onNote(event.target.value)}
-            rows={2}
-            placeholder="Catatan PJK (opsional)"
-            className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-cyan-500"
-          />
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               disabled={busy}
               onClick={() => onReview("fixed")}
@@ -298,7 +287,6 @@ export default function CheckingPage() {
     "all",
   );
   const [statusFilter, setStatusFilter] = useState("all");
-  const [notes, setNotes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [reviewing, setReviewing] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -374,7 +362,7 @@ export default function CheckingPage() {
         token,
         finding.id,
         action,
-        notes[finding.id] || "",
+        "",
       );
       setRun((current) =>
         current
@@ -618,11 +606,7 @@ export default function CheckingPage() {
                 <FindingCard
                   key={finding.id}
                   finding={finding}
-                  note={notes[finding.id] || ""}
                   busy={reviewing === finding.id}
-                  onNote={(value) =>
-                    setNotes((current) => ({ ...current, [finding.id]: value }))
-                  }
                   onReview={(action) => submitReview(finding, action)}
                 />
               ))}
