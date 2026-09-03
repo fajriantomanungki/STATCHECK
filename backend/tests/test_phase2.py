@@ -1,3 +1,7 @@
+from pathlib import Path
+
+import fitz
+
 from app.core.security import get_password_hash
 from app.db.session import SessionLocal
 from app.models.user import User
@@ -119,3 +123,39 @@ def test_brs_registration_and_data_entry(client):
 
 def test_brs_requires_authentication(client):
     assert client.get("/api/v1/brs").status_code == 401
+
+
+def test_delete_brs_removes_record_and_uploaded_files(client):
+    headers = auth_headers(client)
+    created = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "BRS yang Akan Dihapus",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    )
+    assert created.status_code == 201
+    brs_id = created.json()["id"]
+
+    pdf = fitz.open()
+    page = pdf.new_page()
+    page.insert_text((72, 72), "TPK Januari 2026 sebesar 15 persen.")
+    pdf_content = pdf.tobytes()
+    pdf.close()
+    uploaded = client.post(
+        f"/api/v1/brs/{brs_id}/documents",
+        headers=headers,
+        data={"document_type": "bahan_publikasi"},
+        files={"file": ("brs.pdf", pdf_content, "application/pdf")},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    assert any(path.is_file() for path in Path("test_uploads").rglob("*"))
+
+    deleted = client.delete(f"/api/v1/brs/{brs_id}", headers=headers)
+    assert deleted.status_code == 204, deleted.text
+    assert client.get(f"/api/v1/brs/{brs_id}", headers=headers).status_code == 404
+    assert not any(path.is_file() for path in Path("test_uploads").rglob("*"))

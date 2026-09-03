@@ -18,6 +18,7 @@ from app.schemas.brs import (
     BRSListResponse,
     BRSUpdate,
 )
+from app.services.file_storage import resolve_stored_path
 
 router = APIRouter(prefix="/brs", tags=["BRS"])
 
@@ -137,8 +138,16 @@ def update_brs(brs_id: uuid.UUID, payload: BRSUpdate, current_user: CurrentUser,
 def delete_brs(brs_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> None:
     brs = get_brs_or_404(db, brs_id)
     require_brs_manage(current_user, brs)
+    stored_files = [document.file_path for document in brs.documents]
     db.delete(brs)
     db.commit()
+    for file_path in stored_files:
+        try:
+            resolve_stored_path(file_path).unlink(missing_ok=True)
+        except (OSError, ValueError):
+            # Penghapusan data utama tetap berhasil. File yatim dapat dibersihkan
+            # melalui pemeliharaan storage bila filesystem sedang bermasalah.
+            continue
 
 
 @router.get("/{brs_id}/data", response_model=list[BRSDataResponse])
