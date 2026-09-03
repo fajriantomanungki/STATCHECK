@@ -26,7 +26,7 @@ export function Sidebar() {
           return <Link key={name} href={href} className={className}>{content}</Link>;
         })}
       </nav>
-      <div className="mt-12 rounded-xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-slate-400">Phase 6 aktif<br /><span className="text-slate-200">Release Center & Guest Management</span></div>
+      <div className="mt-12 rounded-xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-slate-400">Phase 7 aktif<br /><span className="text-slate-200">Grounded Q&A & Minutes Generator</span></div>
     </aside>
   );
 }

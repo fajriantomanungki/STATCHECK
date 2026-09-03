@@ -1,4 +1,4 @@
-# Database STATCHECK — Phase 6
+# Database STATCHECK — Phase 7
 
 Phase 1 memiliki tabel `users` sebagai fondasi autentikasi.
 
@@ -70,3 +70,14 @@ Status workflow Phase 5:
 Satu kegiatan dapat memiliki banyak BRS dan peserta. Satu BRS hanya boleh berada
 pada satu kegiatan agar riwayat publikasi tidak ganda. Menghapus kegiatan yang
 masih `draft` akan menghapus relasi dan peserta, tetapi tidak menghapus BRS.
+
+## Perluasan Phase 7
+
+Tabel `qna` ditambah metadata berikut:
+
+- `ai_model`, `ai_sources`, dan `generated_at` untuk keterlacakan jawaban AI.
+- `finalized_by` dan `finalized_at` untuk audit jawaban final manusia.
+
+Tabel `minutes` ditambah `opening`, `discussion`, `notes`, `conclusion`,
+`docx_file_path`, dan `pdf_file_path`. File hasil generate disimpan di local
+storage, sedangkan isi dan metadata tetap tersimpan pada PostgreSQL.

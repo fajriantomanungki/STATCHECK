@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     initial_humas_password: str = "Humas123!"
     upload_dir: str = "uploads"
     max_upload_size_mb: int = 25
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-5.6-luna"
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_timeout_seconds: int = 60
+    rag_max_context_chars: int = 30000
 
     model_config = SettingsConfigDict(env_file=("../.env", ".env"), extra="ignore")
 

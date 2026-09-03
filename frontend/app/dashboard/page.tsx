@@ -36,7 +36,7 @@ export default function DashboardPage() {
     <AppShell title="Dashboard">
       <div className="p-6 lg:p-10">
         <div className="flex flex-col justify-between gap-5 rounded-2xl bg-gradient-to-r from-[#102a43] to-[#1e5278] p-7 text-white md:flex-row md:items-center lg:p-9">
-          <div><p className="text-sm font-medium text-cyan-200">PHASE 6 • RELEASE CENTER</p><h1 className="mt-3 text-3xl font-semibold">Selamat datang, {user?.nama.split(" ")[0] ?? "Pengguna"}.</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Kelola BRS, persetujuan, agenda rilis, dan peserta dalam satu alur terintegrasi.</p></div>
+          <div><p className="text-sm font-medium text-cyan-200">PHASE 7 • GROUNDED AI Q&A</p><h1 className="mt-3 text-3xl font-semibold">Selamat datang, {user?.nama.split(" ")[0] ?? "Pengguna"}.</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Kelola BRS, persetujuan, rilis, Q&A berbasis sumber resmi, dan notulen terintegrasi.</p></div>
           <Link href="/brs/new" className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-[#102a43] hover:bg-cyan-300"><PlusIcon className="h-5 w-5" />Daftarkan BRS</Link>
         </div>
 

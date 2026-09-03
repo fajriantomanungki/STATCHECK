@@ -76,11 +76,17 @@ class QnA(Base):
     supervisor_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     pjk_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     final_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    ai_sources: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finalized_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     release: Mapped[Release] = relationship(back_populates="qna_items")
     guest: Mapped[Guest | None] = relationship(back_populates="qna_items")
+    finalizer: Mapped["User | None"] = relationship()
 
 
 class ReleaseMinutes(Base):
@@ -90,10 +96,15 @@ class ReleaseMinutes(Base):
     release_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("releases.id", ondelete="CASCADE"), unique=True, index=True)
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
     generated_file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    opening: Mapped[str | None] = mapped_column(Text, nullable=True)
+    discussion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    conclusion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    docx_file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    pdf_file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     release: Mapped[Release] = relationship(back_populates="minutes")
     creator: Mapped["User"] = relationship()
-

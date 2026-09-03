@@ -1,4 +1,4 @@
-# Arsitektur STATCHECK — Phase 6
+# Arsitektur STATCHECK — Phase 7
 
 ```text
 Browser → Next.js (3000) → FastAPI (8000) → PostgreSQL (5432)
@@ -68,3 +68,21 @@ Humas/Admin menjadi pemilik operasi perubahan, sementara pengguna terautentikasi
 lain dapat melihat agenda dan peserta. Q&A dan notulen memiliki struktur database
 sejak Phase 6 agar Phase 7 dapat menambahkan proses AI tanpa migrasi ulang pada
 entitas inti kegiatan.
+
+Phase 7 menggunakan retrieval sederhana dan transparan:
+
+```text
+Pertanyaan → Data/Analisis/Fenomena + Dokumen Relevan
+           → Konteks Terbatas → Responses API → Saran AI
+           → Supervisor/PJK → Final Answer Manusia
+```
+
+Pencarian konteks dilakukan lokal dengan pencocokan token pertanyaan. Data input
+terstruktur selalu diprioritaskan, sedangkan halaman/slide dokumen dirangking
+berdasarkan relevansi dan dibatasi panjangnya sebelum dikirim. Daftar sumber
+disimpan bersama jawaban agar operator dapat melakukan verifikasi.
+
+Generator notulen menggabungkan metadata rilis, BRS, peserta, isi lembar kerja,
+dan hanya Q&A yang sudah memiliki `final_answer`. DOCX dibuat dengan
+`python-docx`, sementara PDF dibuat dengan PyMuPDF yang sudah digunakan pada
+Phase 3.

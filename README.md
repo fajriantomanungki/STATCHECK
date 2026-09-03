@@ -123,3 +123,29 @@ Phase 6 menyediakan:
 Pengelolaan Release Center dibatasi untuk Humas dan administrator. Akun
 development Humas mengikuti `INITIAL_HUMAS_NIK` dan
 `INITIAL_HUMAS_PASSWORD` pada `.env.example`.
+
+## Phase 7 — Grounded AI Q&A dan Notulen
+
+Phase 7 menyediakan:
+
+- Layar operator Q&A dengan pilihan penanya dari daftar peserta
+- Saran jawaban AI yang dibatasi pada Data Input, analisis, fenomena, dan teks
+  dokumen resmi BRS dalam kegiatan
+- Retrieval lokal berbasis relevansi pertanyaan dan pencatatan daftar sumber
+- Kolom jawaban terpisah untuk AI, Supervisor, PJK, dan jawaban final
+- Human review wajib; AI tidak pernah menetapkan jawaban resmi secara otomatis
+- Pencegahan penyelesaian kegiatan jika masih ada pertanyaan tanpa jawaban final
+- Editor pembukaan, pembahasan, catatan, dan kesimpulan notulen
+- Penggabungan otomatis agenda, daftar BRS, peserta, serta Q&A final
+- Generate dan download notulen dalam format DOCX dan PDF
+
+Q&A manual dan notulen tetap berjalan tanpa layanan AI. Untuk mengaktifkan tombol
+**Jawab dengan AI**, isi konfigurasi berikut pada `.env`, lalu restart backend:
+
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-5.6-luna
+```
+
+Kunci API hanya dibaca backend dan tidak dikirim ke browser. Penggunaan OpenAI
+API ditagihkan terpisah dari langganan ChatGPT.

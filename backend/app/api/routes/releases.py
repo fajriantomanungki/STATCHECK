@@ -2,12 +2,12 @@ import uuid
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DbSession
 from app.models.brs import BRS
-from app.models.release import Guest, Release, ReleaseBRS
+from app.models.release import Guest, QnA, Release, ReleaseBRS
 from app.models.user import utc_now
 from app.schemas.release import (
     GuestCreate,
@@ -208,6 +208,13 @@ def complete_release(release_id: uuid.UUID, current_user: CurrentUser, db: DbSes
         raise HTTPException(status_code=409, detail="Hanya kegiatan yang sedang berlangsung dapat diselesaikan.")
     if any(link.brs.status != "release_ready" for link in release.brs_links):
         raise HTTPException(status_code=409, detail="Seluruh BRS harus tetap berstatus Siap Rilis.")
+    unresolved = db.scalar(
+        select(func.count()).select_from(QnA).where(
+            QnA.release_id == release.id, QnA.final_answer.is_(None)
+        )
+    ) or 0
+    if unresolved:
+        raise HTTPException(status_code=409, detail=f"Tetapkan jawaban final untuk {unresolved} pertanyaan sebelum menyelesaikan rilis.")
     release.status = "completed"
     release.completed_at = utc_now()
     for link in release.brs_links:
@@ -269,4 +276,3 @@ def delete_guest(guest_id: uuid.UUID, current_user: CurrentUser, db: DbSession) 
     ensure_guest_editable(guest.release)
     db.delete(guest)
     db.commit()
-

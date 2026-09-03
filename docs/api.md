@@ -1,4 +1,4 @@
-# API STATCHECK — Phase 6
+# API STATCHECK — Phase 7
 
 Base URL: `/api/v1`
 
@@ -44,6 +44,15 @@ Base URL: `/api/v1`
 | POST | `/releases/{id}/complete` | Selesaikan kegiatan dan tandai BRS dirilis | Humas/Admin |
 | GET/POST | `/releases/{id}/guests` | Daftar/tambah peserta | Bearer token/Humas/Admin |
 | PUT/DELETE | `/releases/guests/{guest_id}` | Perbarui/hapus peserta | Humas/Admin |
+| GET | `/ai/status` | Status konfigurasi AI tanpa mengekspos API key | Bearer token |
+| GET/POST | `/releases/{id}/qna` | Daftar/catat pertanyaan sesi rilis | Bearer token/Humas/Admin |
+| PUT | `/qna/{id}` | Isi jawaban Supervisor atau PJK | Role yang ditetapkan/Admin |
+| POST | `/qna/{id}/generate-answer` | Buat saran jawaban dari konteks resmi | Pengelola/PJK/Supervisor |
+| POST | `/qna/{id}/finalize` | Tetapkan jawaban final oleh manusia | Pengelola/PJK/Supervisor |
+| DELETE | `/qna/{id}` | Hapus pertanyaan saat sesi aktif | Humas/Admin |
+| GET/PUT | `/releases/{id}/minutes` | Baca/simpan lembar kerja notulen | Bearer token/Humas/Admin |
+| POST | `/releases/{id}/minutes/generate` | Generate DOCX dan PDF | Humas/Admin |
+| GET | `/releases/{id}/minutes/download?format=docx|pdf` | Download notulen | Bearer token |
 
 Dokumentasi interaktif tersedia pada `/docs` ketika environment bukan production.
 
@@ -65,3 +74,9 @@ memiliki jadwal tanggal yang sama, dan belum terhubung ke kegiatan rilis lain.
 Daftar peserta dapat diperbarui ketika kegiatan berstatus `draft` atau `ongoing`.
 Setelah endpoint `complete` berhasil, kegiatan dan daftar peserta dikunci serta
 status seluruh BRS di dalamnya berubah menjadi `released`.
+
+Q&A hanya dapat diubah ketika kegiatan `ongoing`. Endpoint AI membangun konteks
+dari sumber resmi milik seluruh BRS dalam kegiatan, mengirim konteks tersebut ke
+Responses API, lalu menyimpan model dan daftar sumber yang digunakan. Saran AI
+tidak menjadi jawaban final sampai endpoint `finalize` dipanggil oleh pengguna
+yang berwenang.

@@ -4,6 +4,7 @@ import type { BRSDocument, BRSDocumentDetail, DocumentType } from "@/types/phase
 import type { CheckResult, CheckRun, CheckRunDetail, ReviewAction } from "@/types/phase4";
 import type { ApprovalWorkflow } from "@/types/phase5";
 import type { Guest, GuestForm, Release, ReleaseBRS, ReleaseDetail, ReleaseForm } from "@/types/phase6";
+import type { AIStatus, Minutes, MinutesForm, QnA } from "@/types/phase7";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
@@ -120,3 +121,24 @@ export const getGuests = (token: string, id: string) => authorizedFetch<Guest[]>
 export const createGuest = (token: string, id: string, payload: GuestForm) => authorizedFetch<Guest>(`/releases/${id}/guests`, token, { method: "POST", body: JSON.stringify(payload) });
 export const updateGuest = (token: string, guestId: string, payload: GuestForm) => authorizedFetch<Guest>(`/releases/guests/${guestId}`, token, { method: "PUT", body: JSON.stringify(payload) });
 export const deleteGuest = (token: string, guestId: string) => authorizedFetch<void>(`/releases/guests/${guestId}`, token, { method: "DELETE" });
+
+export const getAIStatus = (token: string) => authorizedFetch<AIStatus>("/ai/status", token);
+export const getQnA = (token: string, releaseId: string) => authorizedFetch<QnA[]>(`/releases/${releaseId}/qna`, token);
+export const createQnA = (token: string, releaseId: string, guestId: string | null, question: string) => authorizedFetch<QnA>(`/releases/${releaseId}/qna`, token, { method: "POST", body: JSON.stringify({ guest_id: guestId, question }) });
+export const generateQnAAnswer = (token: string, qnaId: string) => authorizedFetch<QnA>(`/qna/${qnaId}/generate-answer`, token, { method: "POST" });
+export const updateQnAAnswers = (token: string, qnaId: string, payload: { supervisor_answer?: string | null; pjk_answer?: string | null }) => authorizedFetch<QnA>(`/qna/${qnaId}`, token, { method: "PUT", body: JSON.stringify(payload) });
+export const finalizeQnA = (token: string, qnaId: string, finalAnswer: string) => authorizedFetch<QnA>(`/qna/${qnaId}/finalize`, token, { method: "POST", body: JSON.stringify({ final_answer: finalAnswer }) });
+export const deleteQnA = (token: string, qnaId: string) => authorizedFetch<void>(`/qna/${qnaId}`, token, { method: "DELETE" });
+export const getMinutes = (token: string, releaseId: string) => authorizedFetch<Minutes | null>(`/releases/${releaseId}/minutes`, token);
+export const updateMinutes = (token: string, releaseId: string, payload: MinutesForm) => authorizedFetch<Minutes>(`/releases/${releaseId}/minutes`, token, { method: "PUT", body: JSON.stringify(payload) });
+export const generateMinutes = (token: string, releaseId: string) => authorizedFetch<Minutes>(`/releases/${releaseId}/minutes/generate`, token, { method: "POST" });
+export async function downloadMinutes(token: string, releaseId: string, format: "docx" | "pdf"): Promise<void> {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/minutes/download?format=${format}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error(await parseError(response));
+  const url = URL.createObjectURL(await response.blob());
+  const link = window.document.createElement("a");
+  link.href = url;
+  link.download = `notulen.${format}`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
