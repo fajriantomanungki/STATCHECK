@@ -3,6 +3,7 @@ import type { BRS, BRSData, BRSDataForm, BRSForm, DashboardSummary, Indicator, U
 import type { BRSDocument, BRSDocumentDetail, DocumentType } from "@/types/phase3";
 import type { CheckResult, CheckRun, CheckRunDetail, ReviewAction } from "@/types/phase4";
 import type { ApprovalWorkflow } from "@/types/phase5";
+import type { Guest, GuestForm, Release, ReleaseBRS, ReleaseDetail, ReleaseForm } from "@/types/phase6";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
@@ -104,3 +105,18 @@ export const supervisorRevision = (token: string, brsId: string, note: string) =
 export const submitKaBps = (token: string, brsId: string, note?: string) => approvalAction(token, brsId, "submit-ka-bps", note);
 export const kaBpsApprove = (token: string, brsId: string, note?: string) => approvalAction(token, brsId, "ka-bps/approve", note);
 export const kaBpsRevision = (token: string, brsId: string, note: string) => approvalAction(token, brsId, "ka-bps/revision", note);
+
+export const getReleases = (token: string) => authorizedFetch<Release[]>("/releases", token);
+export const getRelease = (token: string, id: string) => authorizedFetch<ReleaseDetail>(`/releases/${id}`, token);
+export const getEligibleBRS = (token: string, date: string) => authorizedFetch<ReleaseBRS[]>(`/releases/eligible-brs?tanggal_rilis=${date}`, token);
+export const createRelease = (token: string, payload: ReleaseForm) => authorizedFetch<ReleaseDetail>("/releases", token, { method: "POST", body: JSON.stringify(payload) });
+export const updateRelease = (token: string, id: string, payload: Omit<ReleaseForm, "brs_ids">) => authorizedFetch<ReleaseDetail>(`/releases/${id}`, token, { method: "PUT", body: JSON.stringify(payload) });
+export const deleteRelease = (token: string, id: string) => authorizedFetch<void>(`/releases/${id}`, token, { method: "DELETE" });
+export const addReleaseBRS = (token: string, id: string, brsId: string) => authorizedFetch<ReleaseDetail>(`/releases/${id}/brs`, token, { method: "POST", body: JSON.stringify({ brs_id: brsId }) });
+export const removeReleaseBRS = (token: string, id: string, brsId: string) => authorizedFetch<ReleaseDetail>(`/releases/${id}/brs/${brsId}`, token, { method: "DELETE" });
+export const startRelease = (token: string, id: string) => authorizedFetch<ReleaseDetail>(`/releases/${id}/start`, token, { method: "POST" });
+export const completeRelease = (token: string, id: string) => authorizedFetch<ReleaseDetail>(`/releases/${id}/complete`, token, { method: "POST" });
+export const getGuests = (token: string, id: string) => authorizedFetch<Guest[]>(`/releases/${id}/guests`, token);
+export const createGuest = (token: string, id: string, payload: GuestForm) => authorizedFetch<Guest>(`/releases/${id}/guests`, token, { method: "POST", body: JSON.stringify(payload) });
+export const updateGuest = (token: string, guestId: string, payload: GuestForm) => authorizedFetch<Guest>(`/releases/guests/${guestId}`, token, { method: "PUT", body: JSON.stringify(payload) });
+export const deleteGuest = (token: string, guestId: string) => authorizedFetch<void>(`/releases/guests/${guestId}`, token, { method: "DELETE" });

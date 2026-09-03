@@ -1,4 +1,4 @@
-# API STATCHECK — Phase 5
+# API STATCHECK — Phase 6
 
 Base URL: `/api/v1`
 
@@ -35,6 +35,15 @@ Base URL: `/api/v1`
 | POST | `/brs/{id}/submit-ka-bps` | Kirim BRS yang disetujui ke Kepala BPS | PJK/Supervisor/Admin |
 | POST | `/brs/{id}/ka-bps/approve` | Setujui BRS menjadi siap rilis | Kepala BPS/Admin |
 | POST | `/brs/{id}/ka-bps/revision` | Kembalikan BRS untuk revisi | Kepala BPS/Admin |
+| GET | `/releases/eligible-brs?tanggal_rilis=YYYY-MM-DD` | BRS siap rilis yang belum dijadwalkan | Bearer token |
+| GET/POST | `/releases` | Daftar/registrasi kegiatan rilis | Bearer token/Humas/Admin |
+| GET/PUT/DELETE | `/releases/{id}` | Detail/perbarui/hapus kegiatan draft | Bearer token/Humas/Admin |
+| POST | `/releases/{id}/brs` | Tambah BRS siap rilis | Humas/Admin |
+| DELETE | `/releases/{id}/brs/{brs_id}` | Keluarkan BRS dari kegiatan draft | Humas/Admin |
+| POST | `/releases/{id}/start` | Mulai kegiatan rilis | Humas/Admin |
+| POST | `/releases/{id}/complete` | Selesaikan kegiatan dan tandai BRS dirilis | Humas/Admin |
+| GET/POST | `/releases/{id}/guests` | Daftar/tambah peserta | Bearer token/Humas/Admin |
+| PUT/DELETE | `/releases/guests/{guest_id}` | Perbarui/hapus peserta | Humas/Admin |
 
 Dokumentasi interaktif tersedia pada `/docs` ketika environment bukan production.
 
@@ -48,3 +57,11 @@ Review temuan menerima JSON dengan `action` bernilai `fixed`,
 Endpoint keputusan menerima JSON `{"note": "..."}`. Catatan bersifat opsional
 untuk pengiriman dan persetujuan, tetapi wajib untuk aksi `revision`. Setiap
 endpoint hanya menerima status asal yang tepat agar tahapan tidak dapat dilompati.
+
+Registrasi kegiatan menerima `tanggal_rilis`, `waktu_rilis`, `tempat`,
+`judul_rilis`, dan array `brs_ids`. Semua BRS harus berstatus `release_ready`,
+memiliki jadwal tanggal yang sama, dan belum terhubung ke kegiatan rilis lain.
+
+Daftar peserta dapat diperbarui ketika kegiatan berstatus `draft` atau `ongoing`.
+Setelah endpoint `complete` berhasil, kegiatan dan daftar peserta dikunci serta
+status seluruh BRS di dalamnya berubah menjadi `released`.

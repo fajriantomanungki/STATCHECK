@@ -90,3 +90,6 @@ class DashboardSummary(BaseModel):
     total_indicators: int
     total_brs_data: int
     total_documents: int
+    ready_brs: int
+    released_brs: int
+    total_releases: int

@@ -1,4 +1,4 @@
-# Database STATCHECK — Phase 5
+# Database STATCHECK — Phase 6
 
 Phase 1 memiliki tabel `users` sebagai fondasi autentikasi.
 
@@ -58,3 +58,15 @@ Status workflow Phase 5:
 4. `supervisor_approved` atau `supervisor_revision`
 5. `ka_bps_review`
 6. `release_ready` atau `ka_bps_revision`
+
+## Tabel Phase 6
+
+- `releases`: identitas, jadwal, lokasi, status, pembuat, dan waktu pelaksanaan.
+- `release_brs`: relasi banyak BRS ke satu kegiatan rilis; `brs_id` unik.
+- `guests`: daftar peserta dan informasi kontak kegiatan rilis.
+- `qna`: fondasi pertanyaan serta jawaban AI, Supervisor, PJK, dan jawaban final.
+- `minutes`: fondasi isi notulen dan lokasi file hasil generate.
+
+Satu kegiatan dapat memiliki banyak BRS dan peserta. Satu BRS hanya boleh berada
+pada satu kegiatan agar riwayat publikasi tidak ganda. Menghapus kegiatan yang
+masih `draft` akan menghapus relasi dan peserta, tetapi tidak menghapus BRS.

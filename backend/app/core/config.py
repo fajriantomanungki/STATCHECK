@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     initial_ka_bps_nik: str = "kabps"
     initial_ka_bps_name: str = "Kepala BPS"
     initial_ka_bps_password: str = "KaBPS123!"
+    initial_humas_nik: str = "humas"
+    initial_humas_name: str = "Humas STATCHECK"
+    initial_humas_password: str = "Humas123!"
     upload_dir: str = "uploads"
     max_upload_size_mb: int = 25
 

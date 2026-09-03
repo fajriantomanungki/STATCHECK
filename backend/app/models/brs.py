@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.check import CheckRun
     from app.models.document import Document
     from app.models.indicator import Indicator
+    from app.models.release import ReleaseBRS
     from app.models.user import User
 
 
@@ -44,6 +45,7 @@ class BRS(Base):
     approvals: Mapped[list["Approval"]] = relationship(
         back_populates="brs", cascade="all, delete-orphan", order_by="Approval.created_at"
     )
+    release_link: Mapped["ReleaseBRS | None"] = relationship(back_populates="brs", uselist=False)
 
 
 class BRSTeam(Base):

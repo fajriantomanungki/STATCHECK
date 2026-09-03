@@ -10,7 +10,7 @@ const items = [
   { name: "Master Indikator", icon: CircleStackIcon, href: "/indicators" },
   { name: "Pemeriksaan", icon: ChartBarSquareIcon, href: "/checking" },
   { name: "Persetujuan", icon: CheckBadgeIcon, href: "/approvals" },
-  { name: "Release Center", icon: RocketLaunchIcon, disabled: true },
+  { name: "Release Center", icon: RocketLaunchIcon, href: "/releases" },
 ];
 
 export function Sidebar() {
@@ -19,14 +19,14 @@ export function Sidebar() {
     <aside className="hidden min-h-screen w-72 shrink-0 bg-[#102a43] px-5 py-7 text-white lg:block">
       <div className="mb-12 px-3"><p className="text-xl font-bold tracking-wide">STATCHECK</p><p className="mt-1 text-xs text-slate-400">Quality before release</p></div>
       <nav className="space-y-2">
-        {items.map(({ name, icon: Icon, href, disabled }) => {
+        {items.map(({ name, icon: Icon, href }) => {
           const active = Boolean(href && (pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`))));
-          const content = <><Icon className="h-5 w-5" /><span>{name}</span>{disabled && <span className="ml-auto text-[10px] uppercase text-slate-500">Segera</span>}</>;
-          const className = `flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${active ? "bg-cyan-400 font-semibold text-[#102a43]" : disabled ? "cursor-not-allowed text-slate-500" : "text-slate-300 hover:bg-white/10 hover:text-white"}`;
-          return href ? <Link key={name} href={href} className={className}>{content}</Link> : <div key={name} className={className}>{content}</div>;
+          const content = <><Icon className="h-5 w-5" /><span>{name}</span></>;
+          const className = `flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${active ? "bg-cyan-400 font-semibold text-[#102a43]" : "text-slate-300 hover:bg-white/10 hover:text-white"}`;
+          return <Link key={name} href={href} className={className}>{content}</Link>;
         })}
       </nav>
-      <div className="mt-12 rounded-xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-slate-400">Phase 5 aktif<br /><span className="text-slate-200">Approval Workflow & Audit Trail</span></div>
+      <div className="mt-12 rounded-xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-slate-400">Phase 6 aktif<br /><span className="text-slate-200">Release Center & Guest Management</span></div>
     </aside>
   );
 }

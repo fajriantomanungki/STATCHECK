@@ -43,6 +43,15 @@ def seed_admin() -> None:
                 fungsi="Pimpinan",
                 password_hash=get_password_hash(settings.initial_ka_bps_password),
             ))
+        humas = db.scalar(select(User).where(User.nik == settings.initial_humas_nik))
+        if not humas:
+            db.add(User(
+                nama=settings.initial_humas_name,
+                nik=settings.initial_humas_nik,
+                user_level="humas",
+                fungsi="Diseminasi dan Layanan Statistik",
+                password_hash=get_password_hash(settings.initial_humas_password),
+            ))
         for nama, kategori, satuan, fungsi in DEFAULT_INDICATORS:
             indicator = db.scalar(select(Indicator).where(Indicator.nama_indikator == nama))
             if not indicator:

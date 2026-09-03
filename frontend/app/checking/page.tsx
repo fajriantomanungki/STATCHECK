@@ -14,7 +14,7 @@ const statusLabel: Record<string, string> = {
   checking: "Sedang Diperiksa", pjk_review: "Review PJK", pjk_submitted: "Dikirim ke Supervisor",
   supervisor_review: "Review Supervisor", supervisor_revision: "Revisi Supervisor",
   supervisor_approved: "Disetujui Supervisor", ka_bps_review: "Review Kepala BPS",
-  ka_bps_revision: "Revisi Kepala BPS", release_ready: "Siap Rilis",
+  ka_bps_revision: "Revisi Kepala BPS", release_ready: "Siap Rilis", released: "Telah Dirilis",
 };
 
 export default function CheckingCenterPage() {

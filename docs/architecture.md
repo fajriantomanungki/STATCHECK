@@ -1,4 +1,4 @@
-# Arsitektur STATCHECK — Phase 5
+# Arsitektur STATCHECK — Phase 6
 
 ```text
 Browser → Next.js (3000) → FastAPI (8000) → PostgreSQL (5432)
@@ -53,3 +53,18 @@ Perubahan status hanya dilakukan melalui endpoint aksi yang spesifik. Backend
 memvalidasi role, pengguna yang ditetapkan pada BRS, status asal, kelengkapan
 tindak lanjut temuan, serta kewajiban catatan revisi. Setiap transisi disimpan
 ke tabel `approvals` sebelum ditampilkan pada timeline frontend.
+
+Phase 6 menambahkan agregasi kegiatan rilis:
+
+```text
+BRS release_ready → Kegiatan Rilis → Daftar Peserta
+                           │
+                    Mulai → Selesai
+                           │
+                    BRS menjadi released
+```
+
+Humas/Admin menjadi pemilik operasi perubahan, sementara pengguna terautentikasi
+lain dapat melihat agenda dan peserta. Q&A dan notulen memiliki struktur database
+sejak Phase 6 agar Phase 7 dapat menambahkan proses AI tanpa migrasi ulang pada
+entitas inti kegiatan.

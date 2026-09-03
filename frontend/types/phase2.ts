@@ -39,4 +39,5 @@ export type BRSData = BRSDataForm & {
 
 export type DashboardSummary = {
   total_brs: number; draft_brs: number; total_indicators: number; total_brs_data: number; total_documents: number;
+  ready_brs: number; released_brs: number; total_releases: number;
 };

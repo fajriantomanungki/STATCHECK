@@ -7,6 +7,7 @@ from app.api.deps import CurrentUser, DbSession
 from app.models.brs import BRS, BRSData
 from app.models.document import Document
 from app.models.indicator import Indicator
+from app.models.release import Release
 from app.schemas.brs import DashboardSummary
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -34,4 +35,7 @@ def summary(current_user: CurrentUser, db: DbSession) -> DashboardSummary:
         total_indicators=total_indicators,
         total_brs_data=total_data,
         total_documents=total_documents,
+        ready_brs=sum(brs.status == "release_ready" for brs in visible),
+        released_brs=sum(brs.status == "released" for brs in visible),
+        total_releases=db.scalar(select(func.count()).select_from(Release)) or 0,
     )

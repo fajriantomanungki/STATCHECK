@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.models import (  # noqa: F401
     Approval, BRS, BRSData, BRSTeam, CheckResult, CheckReview, CheckRun,
-    Document, DocumentContent, Indicator, User,
+    Document, DocumentContent, Guest, Indicator, QnA, Release, ReleaseBRS, ReleaseMinutes, User,
 )
 
 config = context.config

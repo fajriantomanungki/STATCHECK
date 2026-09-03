@@ -24,6 +24,7 @@ export function AppShell({ title, children }: { title: string; children: React.R
           <Link href="/indicators" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Indikator</Link>
           <Link href="/checking" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Pemeriksaan</Link>
           <Link href="/approvals" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Persetujuan</Link>
+          <Link href="/releases" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Rilis</Link>
         </nav>
         {children}
       </section>

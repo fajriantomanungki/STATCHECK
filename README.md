@@ -106,3 +106,20 @@ Akun development Kepala BPS tersedia menggunakan nilai
 Temuan STATCHECK harus seluruhnya ditindaklanjuti sebelum PJK dapat mengirim BRS
 ke Supervisor. Setelah BRS dikembalikan, PJK memperbaiki data/dokumen dan
 menjalankan ulang STATCHECK untuk memulai kembali alur persetujuan.
+
+## Phase 6 — Release Center
+
+Phase 6 menyediakan:
+
+- Registrasi kegiatan berdasarkan tanggal, waktu, tempat, dan judul rilis
+- Pemilihan beberapa BRS berstatus `release_ready` dengan jadwal yang sama
+- Pencegahan satu BRS terdaftar pada lebih dari satu kegiatan rilis
+- Pengelolaan daftar undangan: nama, instansi, jabatan, nomor HP, dan email
+- Workflow kegiatan `draft` → `ongoing` → `completed`
+- Perubahan otomatis status seluruh BRS menjadi `released` ketika kegiatan selesai
+- Ringkasan BRS siap rilis, BRS dirilis, dan kegiatan rilis pada dashboard
+- Fondasi tabel Q&A dan notulen untuk Phase 7
+
+Pengelolaan Release Center dibatasi untuk Humas dan administrator. Akun
+development Humas mengikuti `INITIAL_HUMAS_NIK` dan
+`INITIAL_HUMAS_PASSWORD` pada `.env.example`.
