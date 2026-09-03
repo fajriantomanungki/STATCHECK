@@ -71,21 +71,25 @@ Ekstraksi Phase 3 membaca teks yang memang tertanam di dokumen. OCR untuk PDF
 hasil scan dan pembacaan angka dari grafik akan ditambahkan pada tahap pemeriksaan
 lanjutan bila dibutuhkan.
 
-## Phase 4 — Automatic Check dan PJK Review
+## Phase 4 — Automatic Check dan PJK Review (ditingkatkan pada Phase 8)
 
-Phase 4 menyediakan:
+Mesin pemeriksaan Phase 8 menyediakan:
 
-- Pemeriksaan nilai Data BRS terhadap tiga dokumen aktif
+- Pemeriksaan langsung terhadap tiga dokumen aktif tanpa menjadikan data input sebagai acuan
 - Normalisasi angka Indonesia seperti `1.007,74`, `52,31`, dan `27.073`
-- Pemeriksaan silang Bahan Publikasi, Bahan Paparan, dan Narasi Pimpinan
+- Pencocokan angka berdasarkan kemiripan konteks indikator dan satuan
+- Perbandingan BRS/Bahan Publikasi ↔ Bahan Paparan, BRS/Bahan Publikasi ↔ Narasi
+  Pimpinan, serta Bahan Paparan ↔ Narasi Pimpinan
+- Peringatan apabila satu konteks angka ditemukan pada dua dokumen tetapi tidak
+  memperoleh pasangan pada dokumen ketiga
 - Pemeriksaan bahasa berbasis aturan untuk spasi, tanda baca, kata berulang,
   format persen, nama bulan, serta beberapa frasa tidak efektif
-- Skor konsistensi data, silang dokumen, bahasa, dan skor keseluruhan
+- Skor kelengkapan tiga dokumen, konsistensi angka, bahasa, dan skor keseluruhan
 - Klasifikasi temuan `error`, `warning`, dan `suggestion`
 - Tindak lanjut PJK: sudah diperbaiki, data dikonfirmasi benar, atau diabaikan
 - Riwayat pemeriksaan dan audit trail review
 
-Mesin `rules-v1` bekerja sepenuhnya lokal. Hasilnya merupakan alat bantu quality
+Mesin `rules-v2-documents` bekerja sepenuhnya lokal. Hasilnya merupakan alat bantu quality
 control; keputusan akhir tetap dilakukan PJK.
 
 ## Phase 5 — Approval Workflow

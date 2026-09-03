@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.access import require_brs_manage, require_brs_view
 from app.api.deps import CurrentUser, DbSession
-from app.models.brs import BRS, BRSData, BRSTeam
+from app.models.brs import BRS, BRSTeam
 from app.models.check import CheckResult, CheckReview, CheckRun
 from app.models.document import Document
 from app.models.user import utc_now
@@ -29,7 +29,6 @@ def brs_check_query():
         selectinload(BRS.pjk),
         selectinload(BRS.supervisor),
         selectinload(BRS.team).selectinload(BRSTeam.user),
-        selectinload(BRS.data).selectinload(BRSData.indicator),
         selectinload(BRS.documents).selectinload(Document.contents),
     )
 
@@ -103,9 +102,6 @@ def run_payload(run: CheckRun, include_results: bool = False) -> dict:
 def start_check(brs_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> dict:
     brs = get_brs_for_check(db, brs_id)
     require_brs_manage(current_user, brs)
-    if not brs.data:
-        raise HTTPException(status_code=409, detail="Input minimal satu data indikator sebelum pemeriksaan.")
-
     active_documents = [
         document for document in brs.documents
         if document.status == "active" and document.extraction_status == "completed"
@@ -116,10 +112,10 @@ def start_check(brs_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> 
         labels = ", ".join(DOCUMENT_LABELS[item] for item in sorted(missing))
         raise HTTPException(status_code=409, detail=f"Lengkapi dan ekstrak dokumen berikut: {labels}.")
 
-    engine = run_statcheck(list(brs.data), active_documents)
+    engine = run_statcheck(active_documents)
     severity_counts = Counter(item.severity for item in engine.findings)
     check_run = CheckRun(
-        brs_id=brs.id, status="completed", engine_version="rules-v1",
+        brs_id=brs.id, status="completed", engine_version="rules-v2-documents",
         total_checks=engine.total_checks, passed_checks=engine.passed_checks,
         error_count=severity_counts["error"], warning_count=severity_counts["warning"],
         suggestion_count=severity_counts["suggestion"],

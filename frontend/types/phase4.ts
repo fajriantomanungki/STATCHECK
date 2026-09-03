@@ -1,6 +1,6 @@
 import type { UserOption } from "@/types/phase2";
 
-export type CheckType = "data_consistency" | "cross_document" | "language";
+export type CheckType = "data_consistency" | "document_coverage" | "cross_document" | "language";
 export type CheckSeverity = "error" | "warning" | "suggestion";
 export type ReviewAction = "fixed" | "confirmed_correct" | "ignored";
 

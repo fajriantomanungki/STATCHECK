@@ -26,20 +26,22 @@ Upload PDF/PPTX/DOCX → Local Storage
 
 File asli disimpan pada `backend/uploads/`. Metadata dan teks hasil ekstraksi
 disimpan di PostgreSQL. Pemisahan ini memungkinkan file tetap dapat diunduh dan
-teks digunakan oleh mesin STATCHECK pada Phase 4.
+teks digunakan oleh mesin STATCHECK pada Phase 8.
 
-Phase 4 menjalankan tiga jalur pemeriksaan lokal:
+Phase 8 menjalankan dua jalur pemeriksaan lokal:
 
 ```text
-Data BRS + Teks Dokumen → Konsistensi Data
-Teks Tiga Dokumen      → Silang Dokumen
-Teks Tiap Halaman      → Aturan Bahasa
-                                │
-                                └──> Skor + Temuan + Review PJK
+BRS/Bahan Publikasi ↔ Bahan Paparan ↔ Narasi Pimpinan
+                         │
+                         ├──> Pencocokan konteks + perbandingan angka
+Teks Tiap Halaman ──────┴──> Aturan Bahasa
+                                      │
+                                      └──> Skor + Temuan + Review PJK
 ```
 
-Mesin pemeriksaan tidak memanggil layanan AI eksternal. Normalisasi angka dan
-aturan bahasa dibuat deterministik agar hasil dapat diuji dan dijelaskan.
+Mesin pemeriksaan tidak menggunakan tabel data input sebagai nilai acuan dan
+tidak memanggil layanan AI eksternal. Normalisasi angka, pencocokan konteks,
+dan aturan bahasa dibuat deterministik agar hasil dapat diuji dan dijelaskan.
 
 Phase 5 menambahkan state machine persetujuan:
 
