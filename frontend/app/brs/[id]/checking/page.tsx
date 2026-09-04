@@ -227,6 +227,13 @@ function FindingCard({
                 <p className="mt-2 text-xl font-bold">
                   {item?.value}
                 </p>
+                {(item?.basis || item?.subject || item?.value_kind === "range") && (
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-semibold uppercase opacity-75">
+                    {item?.basis && <span>{item.basis}</span>}
+                    {item?.subject && <span>• {item.subject}</span>}
+                    {item?.value_kind === "range" && <span>• Nilai rentang</span>}
+                  </div>
+                )}
                 {item?.section_label && (
                   <p className="mt-1 text-xs opacity-70">
                     {item.section_label}

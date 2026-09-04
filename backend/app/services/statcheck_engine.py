@@ -15,8 +15,11 @@ DOCUMENT_LABELS = {
     "narasi_pimpinan": "Narasi Pimpinan",
 }
 DOCUMENT_ORDER = {document_type: index for index, document_type in enumerate(DOCUMENT_LABELS)}
-NUMBER_PATTERN = re.compile(
-    r"(?<![\w])[-+]?(?:\d{1,3}(?:[.\s]\d{3})+(?:,\d+)?|\d+\.\d+|\d+(?:,\d+)?)(?![\w])"
+NUMBER_BODY = r"[-+]?(?:\d{1,3}(?:[.\s]\d{3})+(?:,\d+)?|\d+\.\d+|\d+(?:,\d+)?)"
+NUMBER_PATTERN = re.compile(rf"(?<![\w]){NUMBER_BODY}(?![\w])")
+RANGE_PATTERN = re.compile(
+    rf"(?P<low>{NUMBER_BODY})\s*(?:hingga|sampai|s\.d\.?|[-–—])\s*(?P<high>{NUMBER_BODY})",
+    re.IGNORECASE,
 )
 WORD_PATTERN = re.compile(r"[a-zA-ZÀ-ÿ]{3,}")
 YEAR_MIN = 1900
@@ -44,6 +47,32 @@ METADATA_PREFIX_PATTERN = re.compile(
     r"\blampiran|\bvolume|\bvol|\bedisi|\bpukul)\.?\s*$",
     re.IGNORECASE,
 )
+BASIS_PATTERNS = {
+    "yoy": re.compile(
+        r"\b(?:year[\s–—-]*on[\s–—-]*year|y[\s–—-]*o[\s–—-]*y|yoy|tahun\s+sebelumnya|tahunan)\b",
+        re.IGNORECASE,
+    ),
+    "mtm": re.compile(
+        r"\b(?:month[\s–—-]*to[\s–—-]*month|m[\s–—-]*t[\s–—-]*m|mtm|bulan\s+sebelumnya|bulanan)\b",
+        re.IGNORECASE,
+    ),
+    "ytd": re.compile(
+        r"\b(?:year[\s–—-]*to[\s–—-]*date|y[\s–—-]*t[\s–—-]*d|ytd|tahun\s+kalender|sejak\s+awal\s+tahun)\b",
+        re.IGNORECASE,
+    ),
+    "qtq": re.compile(
+        r"\b(?:quarter[\s–—-]*to[\s–—-]*quarter|q[\s–—-]*t[\s–—-]*q|qtq|triwulan\s+sebelumnya)\b",
+        re.IGNORECASE,
+    ),
+}
+BASIS_LABELS = {"yoy": "YoY", "mtm": "MtM", "ytd": "YtD", "qtq": "QtQ"}
+GEOGRAPHY_PATTERN = re.compile(
+    r"\b(?P<kind>Kabupaten|Kota|Provinsi)\s+"
+    r"(?P<name>[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]*(?:\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]*){0,3})"
+)
+ENTITY_STOP_WORDS = {
+    "adalah", "berada", "berikut", "mencapai", "sebesar", "tercatat", "yaitu",
+}
 STRONG_INDICATOR_TERMS = {
     "deflasi", "ekspor", "gini", "impor", "inflasi", "kemiskinan", "ketimpangan",
     "ntp", "pdrb", "pengangguran", "rlmt", "tpk", "wisman", "wisnus",
@@ -81,6 +110,13 @@ class NumberMention:
     unit: str | None
     period_key: str | None
     period_label: str | None
+    range_min: Decimal | None
+    range_max: Decimal | None
+    basis_key: str | None
+    basis_label: str | None
+    subject_key: str | None
+    subject_label: str | None
+    value_role: str
 
 
 @dataclass(frozen=True)
@@ -177,39 +213,6 @@ def _fixed_replacement(value: str) -> Callable[[re.Match[str]], str]:
 
 LANGUAGE_RULES = (
     LanguageRule(
-        "double_space", re.compile(r"[ \t]{2,}"), "warning", "Spasi ganda",
-        "Terdapat lebih dari satu spasi di antara unsur kalimat.",
-        "Gunakan satu spasi.", " ",
-    ),
-    LanguageRule(
-        "space_before_punctuation", re.compile(r"\s+[,;:]"), "warning",
-        "Spasi sebelum tanda baca", "Terdapat spasi sebelum tanda baca.",
-        "Hapus spasi sebelum tanda baca.", lambda match: match.group().strip(),
-    ),
-    LanguageRule(
-        "missing_space_after_punctuation", re.compile(r"[,;:](?=[A-Za-zÀ-ÿ])"),
-        "warning", "Spasi setelah tanda baca",
-        "Tanda baca harus diikuti spasi sebelum kata berikutnya.",
-        "Tambahkan satu spasi setelah tanda baca.", lambda match: f"{match.group()} ",
-    ),
-    LanguageRule(
-        "percent_symbol", re.compile(r"(?<!\w)\d+(?:[.,]\d+)?\s*%"),
-        "suggestion", "Penulisan persen", "Nilai persen ditulis menggunakan simbol %.",
-        "Dalam narasi resmi, gunakan kata 'persen'.",
-        lambda match: re.sub(r"\s*%$", " persen", match.group()),
-    ),
-    LanguageRule(
-        "naik_turun_sebesar", re.compile(r"\b(?:naik|turun)\s+sebesar\b", re.IGNORECASE),
-        "suggestion", "Kalimat efektif", "Frasa dapat dibuat lebih efektif.",
-        "Hilangkan kata 'sebesar' setelah 'naik' atau 'turun'.",
-        lambda match: match.group().split()[0],
-    ),
-    LanguageRule(
-        "dibanding", re.compile(r"\bdibanding\b(?!kan)", re.IGNORECASE),
-        "warning", "Bentuk kata baku", "Kata 'dibanding' kurang tepat dalam konteks perbandingan.",
-        "Gunakan 'dibandingkan'.", _fixed_replacement("dibandingkan"),
-    ),
-    LanguageRule(
         "duplicate_word", re.compile(r"\b([a-zA-ZÀ-ÿ]{3,})\s+\1\b", re.IGNORECASE),
         "warning", "Kata berulang", "Terdapat kata yang ditulis dua kali berturut-turut.",
         "Hapus salah satu kata yang berulang.", lambda match: match.group(1),
@@ -234,14 +237,16 @@ LANGUAGE_RULES = (
         lambda match: _preserve_case(match.group(), f"ke {match.group()[2:]}"),
     ),
     LanguageRule(
-        "terdiri_dari", re.compile(r"\bterdiri\s+dari\b", re.IGNORECASE),
-        "suggestion", "Pilihan kata", "Frasa 'terdiri dari' kurang tepat untuk menyatakan unsur.",
-        "Gunakan 'terdiri atas'.", _fixed_replacement("terdiri atas"),
-    ),
-    LanguageRule(
-        "disebabkan_karena", re.compile(r"\bdisebabkan\s+karena\b", re.IGNORECASE),
-        "warning", "Pasangan kata", "Pasangan kata 'disebabkan karena' tidak tepat.",
-        "Gunakan 'disebabkan oleh'.", _fixed_replacement("disebabkan oleh"),
+        "separated_di_prefix",
+        re.compile(
+            r"\bdi\s+(?:banding(?:kan)?|catat|dominasi|hitung|ikuti|jelaskan|kelompokkan|"
+            r"kumpulkan|lakukan|lengkapi|olah|peroleh|publikasikan|rinci|rilis|sajikan|"
+            r"sampaikan|sebutkan|temukan|tampilkan|tunjukkan|ukur|gunakan|hasilkan)\b",
+            re.IGNORECASE,
+        ),
+        "warning", "Penulisan awalan 'di-'", "Awalan 'di-' pada kata kerja harus ditulis serangkai.",
+        "Gabungkan awalan 'di-' dengan kata kerja yang mengikutinya.",
+        lambda match: _preserve_case(match.group(), match.group().replace(" ", "", 1)),
     ),
 ) + tuple(
     LanguageRule(
@@ -349,6 +354,10 @@ def _is_metadata_number(text: str, start: int, end: int, value: Decimal) -> bool
             return True
     if re.search(r"(?:tanggal|rilis)\s*$", before, re.IGNORECASE):
         return True
+    if value == value.to_integral_value() and re.match(
+        r"\.\s+(?:Kabupaten|Kota|Provinsi|[A-ZÀ-Ý])", after
+    ):
+        return True
     return False
 
 
@@ -386,30 +395,119 @@ def _period(text: str, start: int, end: int) -> tuple[str | None, str | None]:
     return key, label
 
 
+def _comparison_basis(text: str, start: int, end: int) -> tuple[str | None, str | None]:
+    segment_start, segment_end = _segment_bounds(text, start, end)
+    search_start = max(0, min(segment_start, start - 450))
+    search_end = min(len(text), max(segment_end, end + 120))
+    window = text[search_start:search_end]
+    number_center = ((start + end) // 2) - search_start
+    candidates: list[tuple[int, str]] = []
+    for basis, pattern in BASIS_PATTERNS.items():
+        for match in pattern.finditer(window):
+            match_center = (match.start() + match.end()) // 2
+            candidates.append((abs(match_center - number_center), basis))
+    if not candidates:
+        return None, None
+    _, basis = min(candidates, key=lambda item: item[0])
+    return basis, BASIS_LABELS[basis]
+
+
+def _subject(text: str, start: int, end: int) -> tuple[str | None, str | None]:
+    segment_start, _ = _segment_bounds(text, start, end)
+    window_start = max(segment_start, start - 140)
+    window = text[window_start:end]
+    candidates: list[tuple[int, str, str]] = []
+    for match in GEOGRAPHY_PATTERN.finditer(window):
+        kind = match.group("kind")
+        name_parts: list[str] = []
+        for part in match.group("name").split():
+            if part.lower() in ENTITY_STOP_WORDS:
+                break
+            name_parts.append(part)
+        if not name_parts:
+            continue
+        label = f"{kind} {' '.join(name_parts)}"
+        candidates.append((len(window) - match.end(), label.lower(), label))
+    if not candidates:
+        return None, None
+    _, key, label = min(candidates, key=lambda item: item[0])
+    return key, label
+
+
+def _value_role(text: str, start: int, end: int) -> str:
+    before = text[max(0, start - 75):start].lower()
+    nearby = text[max(0, start - 75):min(len(text), end + 45)].lower()
+    if re.search(r"\b(?:andil|kontribusi|sumbangan)\b", nearby):
+        return "contribution"
+    if re.search(r"\b(?:naik|turun|meningkat|menurun|bertambah|berkurang)(?:\s+sebesar)?\s*$", before):
+        return "change"
+    if re.search(r"\b(?:selisih|perubahan)\b", nearby):
+        return "change"
+    return "level"
+
+
+def _values_equivalent(left: NumberMention, right: NumberMention) -> bool:
+    left_min = left.range_min if left.range_min is not None else left.value
+    left_max = left.range_max if left.range_max is not None else left.value
+    right_min = right.range_min if right.range_min is not None else right.value
+    right_max = right.range_max if right.range_max is not None else right.value
+    return max(left_min, right_min) <= min(left_max, right_max)
+
+
 def _mentions(document: Document) -> list[NumberMention]:
     result: list[NumberMention] = []
     for content in document.contents:
+        ranges = list(RANGE_PATTERN.finditer(content.text_content))
         for ordinal, match in enumerate(NUMBER_PATTERN.finditer(content.text_content)):
-            value = parse_localized_number(match.group())
+            range_match = next(
+                (
+                    item for item in ranges
+                    if item.start() <= match.start() and match.end() <= item.end()
+                ),
+                None,
+            )
+            if range_match and match.start() != range_match.start("low"):
+                continue
+            raw = range_match.group() if range_match else match.group()
+            mention_start = range_match.start() if range_match else match.start()
+            mention_end = range_match.end() if range_match else match.end()
+            range_min = parse_localized_number(range_match.group("low")) if range_match else None
+            range_max = parse_localized_number(range_match.group("high")) if range_match else None
+            value = range_min if range_match else parse_localized_number(raw)
             if (
                 value is None
-                or _is_year(match.group(), value)
-                or _is_metadata_number(content.text_content, match.start(), match.end(), value)
+                or (range_match and (range_max is None or range_min is None))
+                or (range_match and _is_year(range_match.group("low"), range_min))
+                or (range_match and _is_year(range_match.group("high"), range_max))
+                or (not range_match and _is_year(raw, value))
+                or _is_metadata_number(content.text_content, mention_start, mention_end, value)
             ):
                 continue
-            context = _segment(content.text_content, match.start(), match.end())
+            if range_min is not None and range_max is not None and range_min > range_max:
+                range_min, range_max = range_max, range_min
+            context = _segment(content.text_content, mention_start, mention_end)
             keywords = _keywords(context)
-            unit = _unit(content.text_content, match.start(), match.end())
+            unit = _unit(content.text_content, mention_start, mention_end)
             period_key, period_label = _period(
-                content.text_content, match.start(), match.end()
+                content.text_content, mention_start, mention_end
+            )
+            basis_key, basis_label = _comparison_basis(
+                content.text_content, mention_start, mention_end
+            )
+            subject_key, subject_label = _subject(
+                content.text_content, mention_start, mention_end
             )
             if not keywords or not _is_statistical_number(context, unit, keywords):
                 continue
             result.append(NumberMention(
-                key=f"{document.id}:{content.page_number}:{ordinal}", raw=match.group(), value=value,
+                key=f"{document.id}:{content.page_number}:{ordinal}", raw=raw, value=value,
                 page_number=content.page_number, section_label=content.section_label,
-                text=content.text_content, start=match.start(), end=match.end(), context_text=context,
+                text=content.text_content, start=mention_start, end=mention_end, context_text=context,
                 keywords=keywords, unit=unit, period_key=period_key, period_label=period_label,
+                range_min=range_min, range_max=range_max,
+                basis_key=basis_key, basis_label=basis_label,
+                subject_key=subject_key, subject_label=subject_label,
+                value_role=_value_role(content.text_content, mention_start, mention_end),
             ))
     return result
 
@@ -439,20 +537,29 @@ def _candidate_score(
 ) -> Decimal | None:
     if not _units_compatible(left, right) or not _periods_compatible(left, right):
         return None
+    if left.basis_key and right.basis_key and left.basis_key != right.basis_key:
+        return None
+    if left.subject_key and right.subject_key and left.subject_key != right.subject_key:
+        return None
+    if left.value_role != right.value_role:
+        return None
     left_words = set(left.keywords)
     right_words = set(right.keywords)
     common = left_words & right_words
     overlap = Decimal(len(common)) / Decimal(max(1, min(len(left_words), len(right_words))))
-    exact_bonus = Decimal("0.30") if left.value == right.value else Decimal("0")
+    exact_bonus = Decimal("0.30") if _values_equivalent(left, right) else Decimal("0")
     unit_bonus = Decimal("0.10") if left.unit and left.unit == right.unit else Decimal("0")
     period_bonus = Decimal("0.45") if left.period_key and right.period_key else Decimal("0")
+    basis_bonus = Decimal("0.40") if left.basis_key and left.basis_key == right.basis_key else Decimal("0")
+    subject_bonus = Decimal("0.40") if left.subject_key and left.subject_key == right.subject_key else Decimal("0")
+    semantic_bonus = basis_bonus + subject_bonus
 
     if len(common) >= 2 and overlap >= Decimal("0.20"):
-        return overlap + exact_bonus + unit_bonus + period_bonus
+        return overlap + exact_bonus + unit_bonus + period_bonus + semantic_bonus
     if common & STRONG_INDICATOR_TERMS:
-        return overlap + Decimal("0.35") + exact_bonus + unit_bonus + period_bonus
-    if len(common) == 1 and left.value == right.value and overlap >= Decimal("0.20"):
-        return overlap + exact_bonus + unit_bonus + period_bonus
+        return overlap + Decimal("0.35") + exact_bonus + unit_bonus + period_bonus + semantic_bonus
+    if len(common) == 1 and _values_equivalent(left, right) and overlap >= Decimal("0.20"):
+        return overlap + exact_bonus + unit_bonus + period_bonus + semantic_bonus
     return None
 
 
@@ -518,6 +625,18 @@ def _common_label(mentions: list[NumberMention]) -> str:
         )
         if period_label:
             label = f"{label or 'Indikator'} • {period_label}"
+    basis_keys = {mention.basis_key for mention in mentions if mention.basis_key}
+    if len(basis_keys) == 1:
+        basis = next(iter(basis_keys))
+        label = f"{label or 'Indikator'} • {BASIS_LABELS[basis]}"
+    subject_keys = {mention.subject_key for mention in mentions if mention.subject_key}
+    if len(subject_keys) == 1:
+        subject_label = next(
+            (mention.subject_label for mention in mentions if mention.subject_label),
+            None,
+        )
+        if subject_label:
+            label = f"{label or 'Indikator'} • {subject_label}"
     return label or "Angka pada konteks serupa"
 
 
@@ -546,6 +665,10 @@ def _comparison_values(
             "section_label": mention.section_label,
             "context": _context(mention),
             "document_id": str(document.id),
+            "value_kind": "range" if mention.range_min is not None else "point",
+            "basis": mention.basis_label,
+            "subject": mention.subject_label,
+            "role": mention.value_role,
         }
     return values
 
@@ -592,22 +715,29 @@ def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list
         if len(mentions_by_type) < 2:
             continue
         mentions = [mention for _, mention in mentions_by_type.values()]
-        normalized_values = {mention.value for mention in mentions}
-        if len(normalized_values) == 1:
+        if all(_values_equivalent(left, right) for left, right in combinations(mentions, 2)):
             comparison_passed += 1
             continue
 
-        value_groups: dict[Decimal, list[tuple[Document, NumberMention]]] = defaultdict(list)
-        for document, mention in mentions_by_type.values():
-            value_groups[mention.value].append((document, mention))
-        consensus = max(value_groups.values(), key=len)
-        _, reference_mention = consensus[0]
-        outliers = [
-            (document, mention)
-            for document, mention in mentions_by_type.values()
-            if mention.value != reference_mention.value
-        ]
-        unique_outlier = len(consensus) >= 2 and len(outliers) == 1
+        mention_items = list(mentions_by_type.values())
+        consensus: list[tuple[Document, NumberMention]] = []
+        outliers: list[tuple[Document, NumberMention]] = []
+        if len(mention_items) == 3:
+            for left_item, right_item in combinations(mention_items, 2):
+                other_item = next(
+                    item for item in mention_items
+                    if item is not left_item and item is not right_item
+                )
+                if (
+                    _values_equivalent(left_item[1], right_item[1])
+                    and not _values_equivalent(left_item[1], other_item[1])
+                    and not _values_equivalent(right_item[1], other_item[1])
+                ):
+                    consensus = [left_item, right_item]
+                    outliers = [other_item]
+                    break
+        unique_outlier = len(consensus) == 2 and len(outliers) == 1
+        reference_mention = consensus[0][1] if unique_outlier else mention_items[0][1]
         if not unique_outlier:
             reference_type = next(
                 document_type for document_type in DOCUMENT_LABELS
@@ -702,7 +832,7 @@ def run_statcheck(documents: list[Document]) -> EngineResult:
     return EngineResult(
         findings=findings, total_checks=total, passed_checks=passed,
         # Nama kolom dipertahankan agar database lama tetap kompatibel.
-        # Mulai rules-v2.3-eyd nilainya adalah skor kelengkapan file.
+        # Mulai rules-v2.4-semantic-eyd nilainya adalah skor kelengkapan file.
         data_consistency_score=_score(coverage_total, coverage_findings),
         cross_document_score=_score(comparison_total, comparison_findings),
         language_score=_score(language_total, language_findings),

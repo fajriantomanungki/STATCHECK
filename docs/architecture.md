@@ -49,6 +49,9 @@ konteks/periode, dan aturan EYD dibuat deterministik agar hasil dapat diuji dan
 dijelaskan. Untuk perbedaan pada tiga dokumen, nilai mayoritas menjadi acuan dan
 dokumen penyimpang ditandai. Jika hanya dua dokumen memiliki nilai berbeda,
 keduanya ditandai perlu verifikasi karena sumber yang benar belum dapat ditentukan.
+Sidik semantik angka juga memuat wilayah/subjek, basis perbandingan
+(`YoY`/`MtM`/`YtD`/`QtQ`), jenis nilai, satuan, serta nilai titik atau rentang.
+Nilai titik yang berada di dalam rentang deskriptif diperlakukan konsisten.
 
 Phase 5 menambahkan state machine persetujuan:
 

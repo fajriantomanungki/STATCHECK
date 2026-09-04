@@ -85,10 +85,9 @@ def test_automatic_check_and_pjk_review(client):
     assert checked.status_code == 201, checked.text
     result = checked.json()
     assert result["status"] == "completed"
-    assert result["engine_version"] == "rules-v2.3-eyd"
+    assert result["engine_version"] == "rules-v2.4-semantic-eyd"
     assert result["total_checks"] > 0
     assert result["error_count"] >= 1
-    assert result["warning_count"] + result["suggestion_count"] >= 2
     assert float(result["overall_score"]) < 100
     assert any(
         finding["check_type"] == "cross_document"
@@ -100,7 +99,6 @@ def test_automatic_check_and_pjk_review(client):
     assert any(finding["check_type"] == "cross_document" for finding in result["results"])
     assert all(finding["check_type"] != "data_consistency" for finding in result["results"])
     assert all(finding["brs_data_id"] is None for finding in result["results"])
-    assert any(finding["check_type"] == "language" for finding in result["results"])
 
     brs = client.get(f"/api/v1/brs/{brs_id}", headers=headers)
     assert brs.json()["status"] == "pjk_review"
@@ -406,3 +404,123 @@ def test_eyd_finding_identifies_document_location_and_standard_word(client):
     assert all(item["document_name"] == "bahan_paparan.pdf" for item in word_findings)
     assert all(item["page_number"] == 1 for item in word_findings)
     assert all(item["context_text"] for item in word_findings)
+
+
+def test_point_value_is_consistent_with_descriptive_range(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "RLMT Juli 2026",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": (
+            "Rata-rata Lama Menginap Tamu (RLMT) hotel bintang pada Juli 2026 "
+            "tercatat 1,67 hari."
+        ),
+        "bahan_paparan": (
+            "Rata-rata setiap tamu menghabiskan waktu sekitar 1 hingga 2 hari untuk menginap."
+        ),
+        "narasi_pimpinan": (
+            "RLMT hotel bintang pada Juli 2026 mencapai 1,67 hari."
+        ),
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    assert not any(
+        item["check_type"] == "cross_document"
+        for item in checked.json()["results"]
+    )
+
+
+def test_yoy_value_is_not_compared_with_mtm_value_for_same_city(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "Inflasi Menurut Wilayah",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": (
+            "Inflasi tahun sebelumnya (year-on-year) yaitu Kabupaten Banggai Laut "
+            "sebesar 45,08 persen, disusul Kota Palu sebesar 30,56 persen."
+        ),
+        "bahan_paparan": "MONTH-TO-MONTH (MtM)\n1. Kota Palu : 7,33 %",
+        "narasi_pimpinan": "Perkembangan harga konsumen telah disampaikan.",
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    assert not any(
+        item["check_type"] == "cross_document"
+        for item in checked.json()["results"]
+    )
+
+
+def test_di_prefix_and_preposition_are_checked_without_spacing_rules(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "Uji Penulisan Di",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": "Data  di catat oleh petugas diatas meja.",
+        "bahan_paparan": "Data dicatat oleh petugas di atas meja.",
+        "narasi_pimpinan": "Data naik sebesar 1% dan terdiri dari dua kelompok.",
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    language = [
+        item for item in checked.json()["results"]
+        if item["check_type"] == "language"
+    ]
+    corrections = {(item["actual_value"].lower(), item["expected_value"].lower()) for item in language}
+    assert ("di catat", "dicatat") in corrections
+    assert ("diatas", "di atas") in corrections
+    assert not any("spasi" in (item["field_name"] or "").lower() for item in language)
+    assert not any(item["actual_value"] in {"naik sebesar", "1%", "terdiri dari"} for item in language)

@@ -39,6 +39,10 @@ export type CheckResult = {
       context: string | null;
       document_id: string | null;
       status?: "match" | "different" | "needs_verification";
+      value_kind?: "point" | "range";
+      basis?: string | null;
+      subject?: string | null;
+      role?: string;
     }
   > | null;
   reviews: CheckReview[];

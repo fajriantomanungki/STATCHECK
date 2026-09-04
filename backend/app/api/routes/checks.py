@@ -116,7 +116,7 @@ def start_check(brs_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> 
     engine = run_statcheck(active_documents)
     severity_counts = Counter(item.severity for item in engine.findings)
     check_run = CheckRun(
-        brs_id=brs.id, status="completed", engine_version="rules-v2.3-eyd",
+        brs_id=brs.id, status="completed", engine_version="rules-v2.4-semantic-eyd",
         total_checks=engine.total_checks, passed_checks=engine.passed_checks,
         error_count=severity_counts["error"], warning_count=severity_counts["warning"],
         suggestion_count=severity_counts["suggestion"],
