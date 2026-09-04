@@ -34,8 +34,8 @@ import type {
 const typeLabel: Record<CheckType, string> = {
   data_consistency: "Pemeriksaan Data Lama",
   document_coverage: "Kelengkapan 3 Dokumen",
-  cross_document: "Konsistensi 3 Dokumen",
-  language: "Bahasa",
+  cross_document: "Konsistensi Indikator",
+  language: "Ejaan & Bahasa",
 };
 const documentLabel: Record<string, string> = {
   bahan_publikasi: "BRS / Bahan Publikasi",
@@ -149,6 +149,7 @@ function FindingCard({
                 <span className="text-xs text-slate-400">
                   {documentLabel[finding.document_type] ||
                     finding.document_type}
+                  {finding.document_name ? ` • ${finding.document_name}` : ""}
                   {finding.page_number
                     ? ` • halaman/slide ${finding.page_number}`
                     : ""}
@@ -156,11 +157,9 @@ function FindingCard({
               )}
             </div>
             <h3 className="mt-3 font-bold text-slate-800">
-              {finding.field_name && finding.check_type !== "language"
-                ? finding.field_name
-                : finding.message}
+              {finding.field_name || finding.message}
             </h3>
-            {finding.field_name && finding.check_type !== "language" && (
+            {finding.field_name && (
               <p className="mt-1 text-sm text-slate-600">{finding.message}</p>
             )}
           </div>
@@ -172,7 +171,23 @@ function FindingCard({
         </span>
       </div>
 
-      {comparisonEntries.length > 0 ? (
+      {finding.check_type === "language" &&
+      (finding.expected_value || finding.actual_value) ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-900">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-red-600">
+              Teks ditemukan
+            </p>
+            <p className="mt-2 font-bold">{finding.actual_value || "—"}</p>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+              Bentuk yang disarankan
+            </p>
+            <p className="mt-2 font-bold">{finding.expected_value || "—"}</p>
+          </div>
+        </div>
+      ) : comparisonEntries.length > 0 ? (
         <div className="mt-4 grid gap-3 lg:grid-cols-3">
           {comparisonEntries.map(([documentType, item]) => {
             const isConsensus = Boolean(
@@ -180,16 +195,35 @@ function FindingCard({
                 consensusValue?.[1] >= 2 &&
                 item.value === consensusValue[0],
             );
-            const color = isConsensus
+            const comparisonStatus = item?.status;
+            const color =
+              comparisonStatus === "match" || (!comparisonStatus && isConsensus)
                 ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                : finding.check_type === "cross_document"
-                  ? "border-red-200 bg-red-50 text-red-900"
-                  : "border-cyan-200 bg-cyan-50 text-cyan-900";
+                : comparisonStatus === "needs_verification"
+                  ? "border-amber-200 bg-amber-50 text-amber-900"
+                  : finding.check_type === "cross_document"
+                    ? "border-red-200 bg-red-50 text-red-900"
+                    : "border-cyan-200 bg-cyan-50 text-cyan-900";
+            const comparisonStatusLabel =
+              comparisonStatus === "match"
+                ? "Sesuai mayoritas"
+                : comparisonStatus === "different"
+                  ? "Nilai berbeda"
+                  : comparisonStatus === "needs_verification"
+                    ? "Perlu verifikasi"
+                    : null;
             return (
               <div key={documentType} className={`rounded-xl border p-4 ${color}`}>
-                <p className="text-[11px] font-bold uppercase tracking-wide">
-                  {item?.label || documentLabel[documentType] || documentType}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide">
+                    {item?.label || documentLabel[documentType] || documentType}
+                  </p>
+                  {comparisonStatusLabel && (
+                    <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-bold uppercase">
+                      {comparisonStatusLabel}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-2 text-xl font-bold">
                   {item?.value}
                 </p>
@@ -286,6 +320,7 @@ export default function CheckingPage() {
   const [severityFilter, setSeverityFilter] = useState<"all" | CheckSeverity>(
     "all",
   );
+  const [documentFilter, setDocumentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [busy, setBusy] = useState(false);
   const [reviewing, setReviewing] = useState<string | null>(null);
@@ -311,9 +346,12 @@ export default function CheckingPage() {
         (item) =>
           (typeFilter === "all" || item.check_type === typeFilter) &&
           (severityFilter === "all" || item.severity === severityFilter) &&
+          (documentFilter === "all" ||
+            item.document_type === documentFilter ||
+            item.comparison_values?.[documentFilter]?.status === "needs_verification") &&
           (statusFilter === "all" || item.status === statusFilter),
       ),
-    [run, typeFilter, severityFilter, statusFilter],
+    [run, typeFilter, severityFilter, documentFilter, statusFilter],
   );
   const openCount =
     run?.results.filter((item) => item.status === "open").length || 0;
@@ -513,7 +551,7 @@ export default function CheckingPage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <ScoreCard
-                  label="Kelengkapan 3 Dokumen"
+                  label="Kelengkapan Dokumen"
                   value={run.data_consistency_score}
                 />
                 <ScoreCard
@@ -570,11 +608,8 @@ export default function CheckingPage() {
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                 >
                   <option value="all">Semua pemeriksaan</option>
-                  <option value="document_coverage">
-                    Kelengkapan 3 Dokumen
-                  </option>
-                  <option value="cross_document">Konsistensi 3 Dokumen</option>
-                  <option value="language">Bahasa</option>
+                  <option value="cross_document">Konsistensi Indikator</option>
+                  <option value="language">Ejaan & Bahasa</option>
                 </select>
                 <select
                   value={severityFilter}
@@ -587,6 +622,16 @@ export default function CheckingPage() {
                   <option value="error">Error</option>
                   <option value="warning">Warning</option>
                   <option value="suggestion">Saran</option>
+                </select>
+                <select
+                  value={documentFilter}
+                  onChange={(e) => setDocumentFilter(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="all">Semua dokumen</option>
+                  <option value="bahan_publikasi">BRS / Bahan Publikasi</option>
+                  <option value="bahan_paparan">Bahan Paparan</option>
+                  <option value="narasi_pimpinan">Narasi Pimpinan</option>
                 </select>
                 <select
                   value={statusFilter}

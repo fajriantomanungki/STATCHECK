@@ -38,6 +38,7 @@ export type CheckResult = {
       section_label: string | null;
       context: string | null;
       document_id: string | null;
+      status?: "match" | "different" | "needs_verification";
     }
   > | null;
   reviews: CheckReview[];

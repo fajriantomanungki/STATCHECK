@@ -85,14 +85,16 @@ def test_automatic_check_and_pjk_review(client):
     assert checked.status_code == 201, checked.text
     result = checked.json()
     assert result["status"] == "completed"
-    assert result["engine_version"] == "rules-v2.2-indicator-periods"
+    assert result["engine_version"] == "rules-v2.3-eyd"
     assert result["total_checks"] > 0
     assert result["error_count"] >= 1
-    assert result["suggestion_count"] >= 2
+    assert result["warning_count"] + result["suggestion_count"] >= 2
     assert float(result["overall_score"]) < 100
     assert any(
         finding["check_type"] == "cross_document"
         and finding["comparison_values"]["narasi_pimpinan"]["value"] == "1.007,47"
+        and finding["comparison_values"]["narasi_pimpinan"]["status"] == "different"
+        and finding["document_type"] == "narasi_pimpinan"
         for finding in result["results"]
     )
     assert any(finding["check_type"] == "cross_document" for finding in result["results"])
@@ -353,6 +355,54 @@ def test_indicator_is_matched_by_name_and_same_period(client):
     assert set(january["comparison_values"]) == {"bahan_publikasi", "bahan_paparan"}
     assert january["comparison_values"]["bahan_publikasi"]["value"] == "15"
     assert january["comparison_values"]["bahan_paparan"]["value"] == "18"
+    assert january["document_type"] is None
+    assert {
+        january["comparison_values"]["bahan_publikasi"]["status"],
+        january["comparison_values"]["bahan_paparan"]["status"],
+    } == {"needs_verification"}
     assert "TPK hotel bintang bulan Januari 2026" in january["comparison_values"]["bahan_publikasi"]["context"]
     assert "TPK Januari 2026" in january["comparison_values"]["bahan_paparan"]["context"]
     assert all("Inflasi" not in item.get("field_name", "") for item in errors)
+
+
+def test_eyd_finding_identifies_document_location_and_standard_word(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "Uji EYD Dokumen",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": "Aktivitas survei meningkat. TPK Juli 2026 sebesar 15 persen.",
+        "bahan_paparan": "Aktifitas survey meningkat. TPK Juli 2026 sebesar 15 persen.",
+        "narasi_pimpinan": "Aktivitas survei meningkat. TPK Juli 2026 sebesar 15 persen.",
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    word_findings = [
+        item for item in checked.json()["results"]
+        if item["check_type"] == "language" and item["field_name"] == "Kata tidak baku"
+    ]
+    assert {(item["actual_value"].lower(), item["expected_value"].lower()) for item in word_findings} == {
+        ("aktifitas", "aktivitas"),
+        ("survey", "survei"),
+    }
+    assert all(item["document_type"] == "bahan_paparan" for item in word_findings)
+    assert all(item["document_name"] == "bahan_paparan.pdf" for item in word_findings)
+    assert all(item["page_number"] == 1 for item in word_findings)
+    assert all(item["context_text"] for item in word_findings)

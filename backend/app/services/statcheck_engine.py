@@ -4,6 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from itertools import combinations
+from typing import Callable
 
 from app.models.document import Document
 
@@ -123,18 +124,132 @@ class LanguageRule:
     code: str
     pattern: re.Pattern[str]
     severity: str
+    title: str
     message: str
     suggestion: str
+    replacement: str | Callable[[re.Match[str]], str]
+
+
+NONSTANDARD_WORDS = {
+    "aktifitas": "aktivitas",
+    "analisa": "analisis",
+    "antri": "antre",
+    "apotik": "apotek",
+    "azas": "asas",
+    "detil": "detail",
+    "efektifitas": "efektivitas",
+    "frekwensi": "frekuensi",
+    "hakekat": "hakikat",
+    "hirarki": "hierarki",
+    "ijin": "izin",
+    "jadual": "jadwal",
+    "karir": "karier",
+    "kongkrit": "konkret",
+    "kwalitas": "kualitas",
+    "kwantitas": "kuantitas",
+    "merubah": "mengubah",
+    "metoda": "metode",
+    "obyek": "objek",
+    "praktek": "praktik",
+    "prosentase": "persentase",
+    "resiko": "risiko",
+    "sekedar": "sekadar",
+    "sistim": "sistem",
+    "subyek": "subjek",
+    "survey": "survei",
+    "tehnik": "teknik",
+    "trampil": "terampil",
+    "jaman": "zaman",
+}
+
+
+def _preserve_case(source: str, replacement: str) -> str:
+    if source.isupper():
+        return replacement.upper()
+    if source[:1].isupper():
+        return replacement[:1].upper() + replacement[1:]
+    return replacement
+
+
+def _fixed_replacement(value: str) -> Callable[[re.Match[str]], str]:
+    return lambda match: _preserve_case(match.group(), value)
 
 
 LANGUAGE_RULES = (
-    LanguageRule("double_space", re.compile(r"[ \t]{2,}"), "warning", "Terdapat spasi ganda.", "Gunakan satu spasi antar kata."),
-    LanguageRule("space_before_punctuation", re.compile(r"\s+[,;:]"), "warning", "Terdapat spasi sebelum tanda baca.", "Hapus spasi sebelum tanda baca."),
-    LanguageRule("percent_symbol", re.compile(r"(?<!\w)\d+(?:[.,]\d+)?\s*%"), "suggestion", "Format persen menggunakan simbol %.", "Dalam narasi resmi, pertimbangkan menulis kata 'persen'."),
-    LanguageRule("naik_turun_sebesar", re.compile(r"\b(?:naik|turun)\s+sebesar\b", re.IGNORECASE), "suggestion", "Frasa dapat dibuat lebih efektif.", "Gunakan 'naik' atau 'turun' langsung diikuti nilai."),
-    LanguageRule("dibanding", re.compile(r"\bdibanding\b(?!kan)", re.IGNORECASE), "suggestion", "Penggunaan kata 'dibanding' kurang baku dalam konteks ini.", "Gunakan 'dibandingkan'."),
-    LanguageRule("duplicate_word", re.compile(r"\b([a-zA-ZÀ-ÿ]{3,})\s+\1\b", re.IGNORECASE), "warning", "Terdapat kata yang berulang.", "Hapus salah satu kata yang berulang."),
-    LanguageRule("lowercase_month", re.compile(r"\b(?:januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\b"), "suggestion", "Nama bulan ditulis dengan huruf kecil.", "Gunakan huruf kapital pada nama bulan."),
+    LanguageRule(
+        "double_space", re.compile(r"[ \t]{2,}"), "warning", "Spasi ganda",
+        "Terdapat lebih dari satu spasi di antara unsur kalimat.",
+        "Gunakan satu spasi.", " ",
+    ),
+    LanguageRule(
+        "space_before_punctuation", re.compile(r"\s+[,;:]"), "warning",
+        "Spasi sebelum tanda baca", "Terdapat spasi sebelum tanda baca.",
+        "Hapus spasi sebelum tanda baca.", lambda match: match.group().strip(),
+    ),
+    LanguageRule(
+        "missing_space_after_punctuation", re.compile(r"[,;:](?=[A-Za-zÀ-ÿ])"),
+        "warning", "Spasi setelah tanda baca",
+        "Tanda baca harus diikuti spasi sebelum kata berikutnya.",
+        "Tambahkan satu spasi setelah tanda baca.", lambda match: f"{match.group()} ",
+    ),
+    LanguageRule(
+        "percent_symbol", re.compile(r"(?<!\w)\d+(?:[.,]\d+)?\s*%"),
+        "suggestion", "Penulisan persen", "Nilai persen ditulis menggunakan simbol %.",
+        "Dalam narasi resmi, gunakan kata 'persen'.",
+        lambda match: re.sub(r"\s*%$", " persen", match.group()),
+    ),
+    LanguageRule(
+        "naik_turun_sebesar", re.compile(r"\b(?:naik|turun)\s+sebesar\b", re.IGNORECASE),
+        "suggestion", "Kalimat efektif", "Frasa dapat dibuat lebih efektif.",
+        "Hilangkan kata 'sebesar' setelah 'naik' atau 'turun'.",
+        lambda match: match.group().split()[0],
+    ),
+    LanguageRule(
+        "dibanding", re.compile(r"\bdibanding\b(?!kan)", re.IGNORECASE),
+        "warning", "Bentuk kata baku", "Kata 'dibanding' kurang tepat dalam konteks perbandingan.",
+        "Gunakan 'dibandingkan'.", _fixed_replacement("dibandingkan"),
+    ),
+    LanguageRule(
+        "duplicate_word", re.compile(r"\b([a-zA-ZÀ-ÿ]{3,})\s+\1\b", re.IGNORECASE),
+        "warning", "Kata berulang", "Terdapat kata yang ditulis dua kali berturut-turut.",
+        "Hapus salah satu kata yang berulang.", lambda match: match.group(1),
+    ),
+    LanguageRule(
+        "lowercase_month", re.compile(rf"\b(?:{MONTH_NAMES})\b"), "warning",
+        "Huruf kapital nama bulan", "Nama bulan harus diawali huruf kapital.",
+        "Gunakan huruf kapital pada nama bulan.", lambda match: match.group().title(),
+    ),
+    LanguageRule(
+        "joined_di_preposition",
+        re.compile(r"\bdi(?:atas|bawah|dalam|luar|antara|samping|depan|belakang|tengah|sini|sana|mana)\b", re.IGNORECASE),
+        "warning", "Penulisan kata depan 'di'", "Kata depan 'di' harus ditulis terpisah.",
+        "Pisahkan kata depan 'di' dari kata yang mengikutinya.",
+        lambda match: _preserve_case(match.group(), f"di {match.group()[2:]}"),
+    ),
+    LanguageRule(
+        "joined_ke_preposition",
+        re.compile(r"\bke(?:atas|bawah|dalam|samping|depan|belakang|tengah|sini|sana|mana)\b", re.IGNORECASE),
+        "warning", "Penulisan kata depan 'ke'", "Kata depan 'ke' harus ditulis terpisah.",
+        "Pisahkan kata depan 'ke' dari kata yang mengikutinya.",
+        lambda match: _preserve_case(match.group(), f"ke {match.group()[2:]}"),
+    ),
+    LanguageRule(
+        "terdiri_dari", re.compile(r"\bterdiri\s+dari\b", re.IGNORECASE),
+        "suggestion", "Pilihan kata", "Frasa 'terdiri dari' kurang tepat untuk menyatakan unsur.",
+        "Gunakan 'terdiri atas'.", _fixed_replacement("terdiri atas"),
+    ),
+    LanguageRule(
+        "disebabkan_karena", re.compile(r"\bdisebabkan\s+karena\b", re.IGNORECASE),
+        "warning", "Pasangan kata", "Pasangan kata 'disebabkan karena' tidak tepat.",
+        "Gunakan 'disebabkan oleh'.", _fixed_replacement("disebabkan oleh"),
+    ),
+) + tuple(
+    LanguageRule(
+        f"nonstandard_{wrong}", re.compile(rf"\b{re.escape(wrong)}\b", re.IGNORECASE),
+        "warning", "Kata tidak baku", f"Kata '{wrong}' tidak baku.",
+        f"Gunakan bentuk baku '{correct}'.", _fixed_replacement(correct),
+    )
+    for wrong, correct in NONSTANDARD_WORDS.items()
 )
 
 
@@ -476,7 +591,6 @@ def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list
             mentions_by_type.setdefault(document.document_type, (document, mention))
         if len(mentions_by_type) < 2:
             continue
-        values = _comparison_values(mentions_by_type)
         mentions = [mention for _, mention in mentions_by_type.values()]
         normalized_values = {mention.value for mention in mentions}
         if len(normalized_values) == 1:
@@ -493,7 +607,8 @@ def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list
             for document, mention in mentions_by_type.values()
             if mention.value != reference_mention.value
         ]
-        if len(consensus) == 1:
+        unique_outlier = len(consensus) >= 2 and len(outliers) == 1
+        if not unique_outlier:
             reference_type = next(
                 document_type for document_type in DOCUMENT_LABELS
                 if document_type in mentions_by_type
@@ -505,24 +620,42 @@ def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list
                 if document.document_type != reference_type
             ]
         target_document, target_mention = outliers[0]
+        values = _comparison_values(mentions_by_type)
+        for document_type, value in values.items():
+            document, mention = mentions_by_type[document_type]
+            if unique_outlier:
+                value["status"] = "different" if document.id == target_document.id else "match"
+            else:
+                value["status"] = "needs_verification"
         actual = " | ".join(
             f"{DOCUMENT_LABELS[document.document_type]}: {mention.raw}"
-            for document, mention in outliers
+            for document, mention in (outliers if unique_outlier else mentions_by_type.values())
         )
         evidence = " || ".join(
             f"{DOCUMENT_LABELS[document.document_type]} ({mention.section_label}): {_context(mention)}"
             for document, mention in mentions_by_type.values()
         )
         comparison_findings.append(Finding(
-            check_type="cross_document", severity="error", document_id=target_document.id,
-            field_name=_common_label(mentions), expected_value=reference_mention.raw,
+            check_type="cross_document", severity="error",
+            document_id=target_document.id if unique_outlier else None,
+            field_name=_common_label(mentions),
+            expected_value=reference_mention.raw if unique_outlier else None,
             actual_value=actual,
             message=(
-                f"Nilai indikator dan periode yang sama berbeda pada "
-                f"{len(mentions_by_type)} dokumen."
+                f"Nilai pada {DOCUMENT_LABELS[target_document.document_type]} berbeda dari "
+                f"dua dokumen lainnya."
+                if unique_outlier
+                else f"Nilai indikator dan periode yang sama berbeda pada {len(mentions_by_type)} "
+                "dokumen; dokumen yang benar belum dapat ditentukan."
             ),
-            suggestion="Periksa sumber yang dibandingkan, tentukan angka yang benar, lalu samakan dokumennya.",
-            page_number=target_mention.page_number, context_text=evidence,
+            suggestion=(
+                f"Periksa nilai pada {DOCUMENT_LABELS[target_document.document_type]} lalu samakan "
+                "dengan sumber yang telah terkonfirmasi."
+                if unique_outlier
+                else "Verifikasi sumber resmi untuk menentukan nilai yang benar sebelum menyamakan dokumen."
+            ),
+            page_number=target_mention.page_number if unique_outlier else None,
+            context_text=evidence,
             comparison_values=values,
         ))
 
@@ -536,7 +669,6 @@ def _check_language(documents: list[Document]) -> tuple[list[Finding], int, int]
     total = 0
     passed = 0
     for document in documents:
-        label = DOCUMENT_LABELS.get(document.document_type, document.document_type)
         for content in document.contents:
             for rule in LANGUAGE_RULES:
                 matches = list(rule.pattern.finditer(content.text_content))[:MAX_LANGUAGE_FINDINGS_PER_RULE]
@@ -545,14 +677,17 @@ def _check_language(documents: list[Document]) -> tuple[list[Finding], int, int]
                     passed += 1
                     continue
                 for match in matches:
-                    start = max(0, match.start() - 70)
-                    end = min(len(content.text_content), match.end() + 70)
+                    replacement = (
+                        rule.replacement(match)
+                        if callable(rule.replacement)
+                        else rule.replacement
+                    )
                     findings.append(Finding(
                         check_type="language", severity=rule.severity, document_id=document.id,
-                        field_name=rule.code, actual_value=match.group(),
-                        message=f"{rule.message} ({label}, {content.section_label})",
+                        field_name=rule.title, expected_value=replacement,
+                        actual_value=match.group(), message=rule.message,
                         suggestion=rule.suggestion, page_number=content.page_number,
-                        context_text=" ".join(content.text_content[start:end].split()),
+                        context_text=_segment(content.text_content, match.start(), match.end()),
                     ))
     return findings, total, passed
 
@@ -566,8 +701,8 @@ def run_statcheck(documents: list[Document]) -> EngineResult:
     passed = coverage_passed + comparison_passed + language_passed
     return EngineResult(
         findings=findings, total_checks=total, passed_checks=passed,
-        # Nama kolom dipertahankan agar database lama tetap kompatibel. Mulai
-        # Mulai rules-v2.2-indicator-periods nilainya adalah skor kelengkapan file.
+        # Nama kolom dipertahankan agar database lama tetap kompatibel.
+        # Mulai rules-v2.3-eyd nilainya adalah skor kelengkapan file.
         data_consistency_score=_score(coverage_total, coverage_findings),
         cross_document_score=_score(comparison_total, comparison_findings),
         language_score=_score(language_total, language_findings),

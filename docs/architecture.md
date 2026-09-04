@@ -45,8 +45,10 @@ angka dikelompokkan berdasarkan konteks indikator dan periode terdekat. Hanya
 kelompok yang muncul pada minimal dua dokumen yang dibandingkan; indikator yang
 hanya muncul sekali diabaikan. Setiap temuan menyimpan nilai dan kutipan dari dua
 atau tiga dokumen yang benar-benar dibandingkan. Normalisasi angka, pencocokan
-konteks/periode, dan aturan bahasa dibuat deterministik agar hasil dapat diuji
-dan dijelaskan.
+konteks/periode, dan aturan EYD dibuat deterministik agar hasil dapat diuji dan
+dijelaskan. Untuk perbedaan pada tiga dokumen, nilai mayoritas menjadi acuan dan
+dokumen penyimpang ditandai. Jika hanya dua dokumen memiliki nilai berbeda,
+keduanya ditandai perlu verifikasi karena sumber yang benar belum dapat ditentukan.
 
 Phase 5 menambahkan state machine persetujuan:
 

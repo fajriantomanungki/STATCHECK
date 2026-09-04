@@ -85,14 +85,16 @@ Mesin pemeriksaan Phase 8 menyediakan:
 - Indikator yang hanya muncul pada satu dokumen diabaikan; indikator yang muncul
   pada minimal dua dokumen akan dibandingkan
 - Satu temuan menampilkan nilai beserta kutipan dari setiap dokumen yang dibandingkan
-- Pemeriksaan bahasa berbasis aturan untuk spasi, tanda baca, kata berulang,
-  format persen, nama bulan, serta beberapa frasa tidak efektif
+- Pemeriksaan EYD berbasis aturan untuk kata baku, kata depan `di`/`ke`, spasi,
+  tanda baca, kata berulang, format persen, nama bulan, dan kalimat efektif
+- Setiap temuan menunjukkan dokumen, halaman/slide, teks yang ditemukan, bentuk
+  yang disarankan, dan kutipan sumber
 - Skor kelengkapan tiga dokumen, konsistensi angka, bahasa, dan skor keseluruhan
 - Klasifikasi temuan `error`, `warning`, dan `suggestion`
 - Tindak lanjut PJK: sudah diperbaiki, data dikonfirmasi benar, atau diabaikan
 - Riwayat pemeriksaan dan audit trail review
 
-Mesin `rules-v2.2-indicator-periods` bekerja sepenuhnya lokal. Hasilnya merupakan alat bantu quality
+Mesin `rules-v2.3-eyd` bekerja sepenuhnya lokal. Hasilnya merupakan alat bantu quality
 control; keputusan akhir tetap dilakukan PJK.
 
 ## Phase 5 — Approval Workflow
