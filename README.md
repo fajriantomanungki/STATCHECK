@@ -67,6 +67,12 @@ nilai, satuan, periode, tipe data, basis perbandingan, peran nilai, slide sumber
 dan metadata kalimat. PJK kemudian melengkapi dua kolom yang memang memerlukan
 penilaian manusia: **Analisis** dan **Fenomena**.
 
+Extractor membaca setiap kalimat/klausa sebagai satu konteks. Baris hanya dibuat
+bila indikator dapat dikenali dan angka memiliki hubungan nilai yang jelas.
+Sistem membedakan nilai utama, perubahan, andil, rentang, total, domestik,
+mancanegara, asal, dan tujuan. Nomor slide/dokumen, target, simulasi, serta angka
+tanpa maksud indikator yang cukup jelas tidak dimasukkan ke tabel.
+
 Hasil ekstraksi tersimpan di `presentation_indicators`. Ekstrak ulang
 mempertahankan Analisis dan Fenomena untuk baris sumber yang masih sama. Baris
 yang tidak relevan juga dapat dihapus dari tabel kerja.
