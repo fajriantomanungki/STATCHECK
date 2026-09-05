@@ -83,6 +83,29 @@ STATISTICAL_CUES = STRONG_INDICATOR_TERMS | {
     "produksi", "tamu", "wisatawan",
 }
 
+# Penanda kategori yang mengubah makna sebuah indikator. Dua angka tidak boleh
+# dianggap mewakili data yang sama bila keduanya menyebut kategori yang saling
+# berlawanan, walaupun nama indikator dan nilainya kebetulan sama.
+QUALIFIER_PATTERNS = {
+    "accommodation": (
+        ("nonbintang", "Hotel nonbintang", re.compile(
+            r"\b(?:hotel|akomodasi)\s+non[\s-]?bintang\b|\bakomodasi\s+lainnya\b",
+            re.IGNORECASE,
+        )),
+        ("bintang", "Hotel bintang", re.compile(
+            r"\b(?:hotel|akomodasi)\s+bintang\b", re.IGNORECASE,
+        )),
+    ),
+    "guest": (
+        ("mancanegara", "Tamu mancanegara", re.compile(
+            r"\b(?:tamu|wisatawan)\s+mancanegara\b|\bwisman\b", re.IGNORECASE,
+        )),
+        ("domestik", "Tamu domestik", re.compile(
+            r"\b(?:tamu\s+domestik|wisatawan\s+nusantara|wisnus)\b", re.IGNORECASE,
+        )),
+    ),
+}
+
 # Kata umum yang tidak membantu membedakan konteks indikator.
 STOP_WORDS = {
     "adalah", "akan", "antara", "atau", "bagi", "bahwa", "bulan", "dalam", "dan",
@@ -116,6 +139,7 @@ class NumberMention:
     basis_label: str | None
     subject_key: str | None
     subject_label: str | None
+    qualifiers: tuple[tuple[str, str], ...]
     value_role: str
 
 
@@ -198,6 +222,25 @@ NONSTANDARD_WORDS = {
     "jaman": "zaman",
 }
 
+# Daftar ini sengaja terbatas pada salah ketik yang jelas, bukan pilihan gaya
+# bahasa. Tujuannya agar hasil koreksi tetap ringkas dan dapat ditindaklanjuti.
+COMMON_TYPOS = {
+    "akomodsi": "akomodasi",
+    "dibandigkan": "dibandingkan",
+    "domestk": "domestik",
+    "kenaikkan": "kenaikan",
+    "mancanegra": "mancanegara",
+    "mengalamai": "mengalami",
+    "penghuniaan": "penghunian",
+    "perjalananan": "perjalanan",
+    "persenatse": "persentase",
+    "presentase": "persentase",
+    "sebsar": "sebesar",
+    "statitik": "statistik",
+    "statistk": "statistik",
+    "terdapt": "terdapat",
+}
+
 
 def _preserve_case(source: str, replacement: str) -> str:
     if source.isupper():
@@ -248,6 +291,13 @@ LANGUAGE_RULES = (
         "Gabungkan awalan 'di-' dengan kata kerja yang mengikutinya.",
         lambda match: _preserve_case(match.group(), match.group().replace(" ", "", 1)),
     ),
+) + tuple(
+    LanguageRule(
+        f"typo_{wrong}", re.compile(rf"\b{re.escape(wrong)}\b", re.IGNORECASE),
+        "warning", "Typo", f"Kata '{wrong}' terindikasi salah ketik.",
+        f"Gunakan penulisan '{correct}'.", _fixed_replacement(correct),
+    )
+    for wrong, correct in COMMON_TYPOS.items()
 ) + tuple(
     LanguageRule(
         f"nonstandard_{wrong}", re.compile(rf"\b{re.escape(wrong)}\b", re.IGNORECASE),
@@ -434,6 +484,19 @@ def _subject(text: str, start: int, end: int) -> tuple[str | None, str | None]:
     return key, label
 
 
+def _qualifiers(text: str, start: int, end: int) -> tuple[tuple[str, str], ...]:
+    """Ambil kategori pembeda dari kalimat yang memuat angka."""
+    segment_start, segment_end = _segment_bounds(text, start, end)
+    context = text[segment_start:segment_end]
+    result: list[tuple[str, str]] = []
+    for group, variants in QUALIFIER_PATTERNS.items():
+        for key, label, pattern in variants:
+            if pattern.search(context):
+                result.append((group, key))
+                break
+    return tuple(result)
+
+
 def _value_role(text: str, start: int, end: int) -> str:
     before = text[max(0, start - 75):start].lower()
     nearby = text[max(0, start - 75):min(len(text), end + 45)].lower()
@@ -497,6 +560,7 @@ def _mentions(document: Document) -> list[NumberMention]:
             subject_key, subject_label = _subject(
                 content.text_content, mention_start, mention_end
             )
+            qualifiers = _qualifiers(content.text_content, mention_start, mention_end)
             if not keywords or not _is_statistical_number(context, unit, keywords):
                 continue
             result.append(NumberMention(
@@ -507,6 +571,7 @@ def _mentions(document: Document) -> list[NumberMention]:
                 range_min=range_min, range_max=range_max,
                 basis_key=basis_key, basis_label=basis_label,
                 subject_key=subject_key, subject_label=subject_label,
+                qualifiers=qualifiers,
                 value_role=_value_role(content.text_content, mention_start, mention_end),
             ))
     return result
@@ -531,11 +596,28 @@ def _periods_compatible(left: NumberMention, right: NumberMention) -> bool:
     return not left_year or not right_year or left_year == right_year
 
 
+def _qualifiers_compatible(left: NumberMention, right: NumberMention) -> bool:
+    left_by_group = dict(left.qualifiers)
+    right_by_group = dict(right.qualifiers)
+    return all(
+        group not in right_by_group or right_by_group[group] == value
+        for group, value in left_by_group.items()
+    )
+
+
+def _has_period_conflict(mentions: list[NumberMention]) -> bool:
+    explicit = [mention for mention in mentions if mention.period_key]
+    return any(
+        not _periods_compatible(left, right)
+        for left, right in combinations(explicit, 2)
+    )
+
+
 def _candidate_score(
     left: NumberMention,
     right: NumberMention,
 ) -> Decimal | None:
-    if not _units_compatible(left, right) or not _periods_compatible(left, right):
+    if not _units_compatible(left, right) or not _qualifiers_compatible(left, right):
         return None
     if left.basis_key and right.basis_key and left.basis_key != right.basis_key:
         return None
@@ -547,19 +629,31 @@ def _candidate_score(
     right_words = set(right.keywords)
     common = left_words & right_words
     overlap = Decimal(len(common)) / Decimal(max(1, min(len(left_words), len(right_words))))
+    strong_identity = bool(common & STRONG_INDICATOR_TERMS)
+    descriptive_identity = len(common) >= 2 and overlap >= Decimal("0.30")
+    if not strong_identity and not descriptive_identity:
+        return None
+
+    periods_compatible = _periods_compatible(left, right)
+    # Periode berbeda hanya boleh dipasangkan bila identitas indikator benar-benar
+    # kuat. Nilai yang sama menambah keyakinan, tetapi bukan satu-satunya dasar.
+    if not periods_compatible and not (
+        strong_identity or (len(common) >= 3 and overlap >= Decimal("0.45"))
+    ):
+        return None
     exact_bonus = Decimal("0.30") if _values_equivalent(left, right) else Decimal("0")
     unit_bonus = Decimal("0.10") if left.unit and left.unit == right.unit else Decimal("0")
-    period_bonus = Decimal("0.45") if left.period_key and right.period_key else Decimal("0")
+    period_bonus = Decimal("0.45") if (
+        periods_compatible and left.period_key and right.period_key
+    ) else Decimal("0")
     basis_bonus = Decimal("0.40") if left.basis_key and left.basis_key == right.basis_key else Decimal("0")
     subject_bonus = Decimal("0.40") if left.subject_key and left.subject_key == right.subject_key else Decimal("0")
     semantic_bonus = basis_bonus + subject_bonus
 
-    if len(common) >= 2 and overlap >= Decimal("0.20"):
+    if descriptive_identity:
         return overlap + exact_bonus + unit_bonus + period_bonus + semantic_bonus
-    if common & STRONG_INDICATOR_TERMS:
+    if strong_identity:
         return overlap + Decimal("0.35") + exact_bonus + unit_bonus + period_bonus + semantic_bonus
-    if len(common) == 1 and _values_equivalent(left, right) and overlap >= Decimal("0.20"):
-        return overlap + exact_bonus + unit_bonus + period_bonus + semantic_bonus
     return None
 
 
@@ -666,6 +760,7 @@ def _comparison_values(
             "context": _context(mention),
             "document_id": str(document.id),
             "value_kind": "range" if mention.range_min is not None else "point",
+            "period": mention.period_label,
             "basis": mention.basis_label,
             "subject": mention.subject_label,
             "role": mention.value_role,
@@ -715,6 +810,73 @@ def _document_comparison(documents: list[Document]) -> tuple[list[Finding], list
         if len(mentions_by_type) < 2:
             continue
         mentions = [mention for _, mention in mentions_by_type.values()]
+        if _has_period_conflict(mentions):
+            mention_items = list(mentions_by_type.values())
+            consensus: list[tuple[Document, NumberMention]] = []
+            outliers: list[tuple[Document, NumberMention]] = []
+            if len(mention_items) == 3:
+                for candidate in mention_items:
+                    others = [item for item in mention_items if item is not candidate]
+                    if (
+                        _periods_compatible(others[0][1], others[1][1])
+                        and all(
+                            not _periods_compatible(candidate[1], other[1])
+                            for other in others
+                        )
+                    ):
+                        consensus = others
+                        outliers = [candidate]
+                        break
+            unique_outlier = len(consensus) == 2 and len(outliers) == 1
+            if unique_outlier:
+                reference_mention = consensus[0][1]
+                target_document, target_mention = outliers[0]
+            else:
+                reference_mention = mention_items[0][1]
+                target_document, target_mention = mention_items[0]
+
+            values = _comparison_values(mentions_by_type)
+            for document_type, value in values.items():
+                document, _ = mentions_by_type[document_type]
+                value["issue"] = "period"
+                if unique_outlier:
+                    value["status"] = "different" if document.id == target_document.id else "match"
+                else:
+                    value["status"] = "needs_verification"
+            actual_periods = " | ".join(
+                f"{DOCUMENT_LABELS[document.document_type]}: {mention.period_label or 'periode tidak disebutkan'}"
+                for document, mention in mention_items
+            )
+            evidence = " || ".join(
+                f"{DOCUMENT_LABELS[document.document_type]} ({mention.section_label}): {_context(mention)}"
+                for document, mention in mention_items
+            )
+            comparison_findings.append(Finding(
+                check_type="cross_document", severity="error",
+                document_id=target_document.id if unique_outlier else None,
+                field_name=_common_label(mentions),
+                expected_value=reference_mention.period_label if unique_outlier else None,
+                actual_value=actual_periods,
+                message=(
+                    f"Periode indikator pada {DOCUMENT_LABELS[target_document.document_type]} "
+                    "berbeda dari dua dokumen lainnya."
+                    if unique_outlier
+                    else f"Indikator dengan makna yang sama menggunakan periode berbeda pada "
+                    f"{len(mentions_by_type)} dokumen."
+                ),
+                suggestion=(
+                    f"Periksa bulan/tahun pada {DOCUMENT_LABELS[target_document.document_type]} "
+                    "dan samakan dengan periode sumber yang benar."
+                    if unique_outlier
+                    else "Verifikasi bulan/tahun data pada sumber resmi, lalu samakan periode antar dokumen."
+                ),
+                page_number=target_mention.page_number if unique_outlier else None,
+                context_text=evidence,
+                comparison_values=values,
+            ))
+            # Angka lintas periode tidak dinilai sebagai selisih nilai karena
+            # keduanya belum terbukti merujuk ke periode data yang sama.
+            continue
         if all(_values_equivalent(left, right) for left, right in combinations(mentions, 2)):
             comparison_passed += 1
             continue

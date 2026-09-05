@@ -206,9 +206,13 @@ function FindingCard({
                     : "border-cyan-200 bg-cyan-50 text-cyan-900";
             const comparisonStatusLabel =
               comparisonStatus === "match"
-                ? "Sesuai mayoritas"
+                ? item?.issue === "period"
+                  ? "Periode acuan"
+                  : "Sesuai mayoritas"
                 : comparisonStatus === "different"
-                  ? "Nilai berbeda"
+                  ? item?.issue === "period"
+                    ? "Periode berbeda"
+                    : "Nilai berbeda"
                   : comparisonStatus === "needs_verification"
                     ? "Perlu verifikasi"
                     : null;
@@ -227,8 +231,9 @@ function FindingCard({
                 <p className="mt-2 text-xl font-bold">
                   {item?.value}
                 </p>
-                {(item?.basis || item?.subject || item?.value_kind === "range") && (
+                {(item?.period || item?.basis || item?.subject || item?.value_kind === "range") && (
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-semibold uppercase opacity-75">
+                    {item?.period && <span>{item.period}</span>}
                     {item?.basis && <span>{item.basis}</span>}
                     {item?.subject && <span>• {item.subject}</span>}
                     {item?.value_kind === "range" && <span>• Nilai rentang</span>}

@@ -85,7 +85,7 @@ def test_automatic_check_and_pjk_review(client):
     assert checked.status_code == 201, checked.text
     result = checked.json()
     assert result["status"] == "completed"
-    assert result["engine_version"] == "rules-v2.4-semantic-eyd"
+    assert result["engine_version"] == "rules-v2.5-period-typo"
     assert result["total_checks"] > 0
     assert result["error_count"] >= 1
     assert float(result["overall_score"]) < 100
@@ -524,3 +524,139 @@ def test_di_prefix_and_preposition_are_checked_without_spacing_rules(client):
     assert ("diatas", "di atas") in corrections
     assert not any("spasi" in (item["field_name"] or "").lower() for item in language)
     assert not any(item["actual_value"] in {"naik sebesar", "1%", "terdiri dari"} for item in language)
+
+
+def test_same_indicator_and_value_with_different_month_is_an_error(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "TPK Juli 2026",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": (
+            "Tingkat Penghunian Kamar (TPK) hotel bintang pada Juli 2026 "
+            "tercatat 51,50 persen."
+        ),
+        "bahan_paparan": (
+            "TPK hotel bintang pada Juni 2026 tercatat 51,50 persen."
+        ),
+        "narasi_pimpinan": (
+            "Pada Juli 2026, TPK hotel bintang mencapai 51,50 persen."
+        ),
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    errors = [
+        item for item in checked.json()["results"]
+        if item["check_type"] == "cross_document"
+    ]
+    assert len(errors) == 1
+    finding = errors[0]
+    assert finding["document_type"] == "bahan_paparan"
+    assert "Periode indikator" in finding["message"]
+    comparison = finding["comparison_values"]
+    assert comparison["bahan_publikasi"]["period"] == "Juli 2026"
+    assert comparison["bahan_paparan"]["period"] == "Juni 2026"
+    assert comparison["narasi_pimpinan"]["period"] == "Juli 2026"
+    assert comparison["bahan_paparan"]["status"] == "different"
+    assert all(item["value"] == "51,50" for item in comparison.values())
+    assert all(item["issue"] == "period" for item in comparison.values())
+
+
+def test_equal_number_with_different_indicator_meaning_is_not_compared(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "TPK Menurut Kategori Hotel",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": (
+            "TPK hotel bintang pada Juli 2026 tercatat 51,50 persen."
+        ),
+        "bahan_paparan": (
+            "TPK hotel nonbintang pada Juni 2026 tercatat 51,50 persen."
+        ),
+        "narasi_pimpinan": "Perkembangan usaha akomodasi telah disampaikan.",
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    assert not any(
+        item["check_type"] == "cross_document"
+        for item in checked.json()["results"]
+    )
+
+
+def test_typo_check_identifies_document_and_suggested_correction(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "Uji Typo",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": "Dokumen statistik membahas perkembangan akomodasi.",
+        "bahan_paparan": "Dokumen statitik memuat persenatse usaha akomodsi.",
+        "narasi_pimpinan": "Dokumen statistik membahas perkembangan akomodasi.",
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    typo_findings = [
+        item for item in checked.json()["results"]
+        if item["check_type"] == "language" and item["field_name"] == "Typo"
+    ]
+    assert {
+        (item["actual_value"].lower(), item["expected_value"].lower())
+        for item in typo_findings
+    } == {
+        ("statitik", "statistik"),
+        ("persenatse", "persentase"),
+        ("akomodsi", "akomodasi"),
+    }
+    assert all(item["document_type"] == "bahan_paparan" for item in typo_findings)

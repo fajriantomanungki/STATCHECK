@@ -40,9 +40,11 @@ export type CheckResult = {
       document_id: string | null;
       status?: "match" | "different" | "needs_verification";
       value_kind?: "point" | "range";
+      period?: string | null;
       basis?: string | null;
       subject?: string | null;
       role?: string;
+      issue?: "value" | "period";
     }
   > | null;
   reviews: CheckReview[];
