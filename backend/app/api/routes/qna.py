@@ -151,6 +151,7 @@ def generate_answer(qna_id: uuid.UUID, current_user: CurrentUser, db: DbSession)
     release = db.scalar(
         select(Release).options(
             selectinload(Release.brs_links).selectinload(ReleaseBRS.brs).selectinload(BRS.data).selectinload(BRSData.indicator),
+            selectinload(Release.brs_links).selectinload(ReleaseBRS.brs).selectinload(BRS.presentation_indicators),
             selectinload(Release.brs_links).selectinload(ReleaseBRS.brs).selectinload(BRS.documents).selectinload(Document.contents),
         ).where(Release.id == item.release_id)
     )
@@ -192,4 +193,3 @@ def delete_qna(qna_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> N
         raise HTTPException(status_code=403, detail="Hanya Humas atau administrator yang dapat menghapus pertanyaan.")
     db.delete(item)
     db.commit()
-

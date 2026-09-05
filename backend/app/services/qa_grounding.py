@@ -58,6 +58,26 @@ def build_grounding_context(release: Release, question: str) -> GroundingContext
                 parts.append(f"Fenomena: {item.fenomena}")
             structured.append((source, "\n".join(parts)))
 
+        for item in brs.presentation_indicators:
+            source = (
+                f"Bahan Paparan — {brs.nama_brs} — {item.indicator_name} "
+                f"(slide {item.page_number})"
+            )
+            parts = [
+                f"BRS: {brs.nama_brs}",
+                f"Indikator hasil ekstraksi: {item.indicator_name}",
+                f"Nilai: {item.value_text}{f' {item.unit}' if item.unit else ''}",
+                f"Periode: {item.period_label or '-'}",
+                f"Tipe data: {item.data_type}",
+                f"Basis perbandingan: {item.comparison_basis or '-'}",
+                f"Keterangan sumber: {item.metadata_text}",
+            ]
+            if item.analysis:
+                parts.append(f"Analisis terverifikasi pengguna: {item.analysis}")
+            if item.phenomenon:
+                parts.append(f"Fenomena terverifikasi pengguna: {item.phenomenon}")
+            structured.append((source, "\n".join(parts)))
+
         for document in brs.documents:
             if document.status != "active" or document.extraction_status != "completed":
                 continue
@@ -129,6 +149,7 @@ def generate_grounded_answer(question: str, context: GroundingContext) -> tuple[
                 "instructions": instructions,
                 "input": f"PERTANYAAN:\n{question}\n\nKONTEKS RESMI:\n{context.text}",
                 "max_output_tokens": 700,
+                "store": False,
             },
             timeout=settings.openai_timeout_seconds,
         )
@@ -143,4 +164,3 @@ def generate_grounded_answer(question: str, context: GroundingContext) -> tuple[
     if not answer:
         raise AIProviderError("Layanan AI tidak mengembalikan teks jawaban.")
     return answer, settings.openai_model
-

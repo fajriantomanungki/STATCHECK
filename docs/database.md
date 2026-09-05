@@ -26,11 +26,18 @@ Phase 1 memiliki tabel `users` sebagai fondasi autentikasi.
 - `documents`: metadata file, jenis dokumen, versi, checksum, status, hasil
   ekstraksi, jumlah halaman, dan pengunggah.
 - `document_contents`: teks hasil ekstraksi yang dipisahkan per halaman atau
-  slide agar dapat ditelusuri kembali saat pemeriksaan.
+slide agar dapat ditelusuri kembali saat pemeriksaan.
+- `presentation_indicators`: data terstruktur hasil ekstraksi Bahan Paparan,
+  meliputi indikator, nilai, satuan, periode, tipe data, basis, peran nilai,
+  kutipan/metadata, slide sumber, Analisis, dan Fenomena.
 
 Satu BRS memiliki maksimal satu dokumen aktif untuk setiap jenis. Ketika versi
 baru diunggah, versi aktif sebelumnya berubah menjadi `archived`; file dan
 metadata lama tetap tersedia sebagai audit trail.
+
+Hanya data dari Bahan Paparan aktif yang menjadi tabel kerja indikator. Saat
+versi baru diunggah, hasil lama diganti dan anotasi Analisis/Fenomena dipertahankan
+bila identitas sumbernya tetap sama.
 
 ## Tabel Phase 4
 

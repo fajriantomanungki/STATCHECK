@@ -9,6 +9,20 @@ Sistem terintegrasi untuk mengelola, memeriksa, mengendalikan persetujuan, dan m
 - `database/` — migrasi dan seed database
 - `docs/` — dokumentasi arsitektur, database, dan API
 
+## Navigasi aplikasi
+
+Sidebar pengguna disederhanakan menjadi tiga menu utama:
+
+- **Dashboard** untuk ringkasan pekerjaan.
+- **Olah BRS** untuk pendaftaran, data indikator, dokumen, pemeriksaan, review PJK,
+  Supervisor, hingga approval Kepala BPS.
+- **Rilis** untuk kegiatan rilis, daftar tamu, Q&A, serta laporan/notulen rilis.
+
+Administrator memperoleh bagian **Administrasi** tambahan untuk mengelola user
+dan master indikator. Keduanya mendukung tambah, edit, aktivasi/nonaktivasi, dan
+hapus. Data yang masih dipakai pada audit trail tidak dapat dihapus sampai
+referensinya dilepas; akun atau indikator tersebut dapat dinonaktifkan.
+
 ## Phase 1 — Foundation
 
 Phase 1 menyediakan:
@@ -44,6 +58,18 @@ Phase 2 menyediakan:
 - Kolom analisis dan fenomena untuk setiap nilai indikator
 - Ringkasan jumlah BRS, draft, indikator, dan data pada dashboard
 - Pembatasan akses berdasarkan PJK, supervisor, tim, dan level pengguna
+
+### Tabel indikator dari Bahan Paparan
+
+Ketika dokumen bertipe **Bahan Paparan** berhasil diunggah atau diekstrak ulang,
+backend otomatis membentuk tabel indikator yang berisi nama/konteks indikator,
+nilai, satuan, periode, tipe data, basis perbandingan, peran nilai, slide sumber,
+dan metadata kalimat. PJK kemudian melengkapi dua kolom yang memang memerlukan
+penilaian manusia: **Analisis** dan **Fenomena**.
+
+Hasil ekstraksi tersimpan di `presentation_indicators`. Ekstrak ulang
+mempertahankan Analisis dan Fenomena untuk baris sumber yang masih sama. Baris
+yang tidak relevan juga dapat dihapus dari tabel kerja.
 
 Akun development supervisor tersedia menggunakan nilai
 `INITIAL_SUPERVISOR_NIK` dan `INITIAL_SUPERVISOR_PASSWORD` pada `.env.example`.
@@ -139,8 +165,8 @@ development Humas mengikuti `INITIAL_HUMAS_NIK` dan
 Phase 7 menyediakan:
 
 - Layar operator Q&A dengan pilihan penanya dari daftar peserta
-- Saran jawaban AI yang dibatasi pada Data Input, analisis, fenomena, dan teks
-  dokumen resmi BRS dalam kegiatan
+- Saran jawaban AI yang dibatasi pada tabel indikator Bahan Paparan, analisis,
+  fenomena, data lama, dan teks dokumen resmi BRS dalam kegiatan
 - Retrieval lokal berbasis relevansi pertanyaan dan pencatatan daftar sumber
 - Kolom jawaban terpisah untuk AI, Supervisor, PJK, dan jawaban final
 - Human review wajib; AI tidak pernah menetapkan jawaban resmi secara otomatis
@@ -155,6 +181,14 @@ Q&A manual dan notulen tetap berjalan tanpa layanan AI. Untuk mengaktifkan tombo
 ```env
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-5.6-luna
+```
+
+Integrasi menggunakan endpoint `POST /v1/responses`. Permintaan memakai
+`store=false`, membatasi jawaban pada konteks resmi yang diambil backend, dan
+tetap mewajibkan pengguna menetapkan jawaban final. Setelah key diisi, jalankan:
+
+```bash
+docker compose up --build
 ```
 
 Kunci API hanya dibaca backend dan tidak dikirim ke browser. Penggunaan OpenAI

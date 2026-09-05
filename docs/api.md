@@ -9,8 +9,10 @@ Base URL: `/api/v1`
 | GET | `/auth/me` | Profil pengguna aktif | Bearer token |
 | POST | `/auth/logout` | Menutup sesi pada client | Bearer token |
 | GET | `/users/options` | Pilihan pengguna aktif | Bearer token |
+| GET/POST | `/users` | Daftar/tambah pengguna | Admin |
+| PUT/DELETE | `/users/{id}` | Edit/hapus pengguna | Admin |
 | GET/POST | `/indicators` | Daftar/tambah master indikator | Bearer token/Admin |
-| PUT | `/indicators/{id}` | Perbarui master indikator | Admin |
+| PUT/DELETE | `/indicators/{id}` | Perbarui/hapus master indikator | Admin |
 | GET/POST | `/brs` | Daftar/registrasi BRS | Bearer token/PJK |
 | GET/PUT/DELETE | `/brs/{id}` | Detail/perbarui/hapus BRS draft | Sesuai akses BRS |
 | GET/POST | `/brs/{id}/data` | Daftar/tambah data indikator | Sesuai akses BRS |
@@ -21,6 +23,9 @@ Base URL: `/api/v1`
 | GET | `/documents/{id}` | Metadata dan teks hasil ekstraksi | Sesuai akses BRS |
 | GET | `/documents/{id}/download` | Unduh file asli | Sesuai akses BRS |
 | POST | `/documents/{id}/reextract` | Jalankan ulang ekstraksi teks | PJK/Admin |
+| GET | `/brs/{id}/presentation-indicators` | Tabel indikator hasil Bahan Paparan | Sesuai akses BRS |
+| POST | `/brs/{id}/presentation-indicators/refresh` | Ekstrak ulang tabel dari Bahan Paparan aktif | PJK/Admin |
+| PUT/DELETE | `/brs/{id}/presentation-indicators/{item_id}` | Isi analisis/fenomena atau hapus baris | PJK/Admin |
 | POST | `/brs/{id}/check` | Jalankan pemeriksaan otomatis | PJK/Admin |
 | GET | `/brs/{id}/checks` | Riwayat pemeriksaan BRS | Sesuai akses BRS |
 | GET | `/brs/{id}/checks/latest` | Hasil pemeriksaan terbaru | Sesuai akses BRS |
@@ -76,7 +81,8 @@ Setelah endpoint `complete` berhasil, kegiatan dan daftar peserta dikunci serta
 status seluruh BRS di dalamnya berubah menjadi `released`.
 
 Q&A hanya dapat diubah ketika kegiatan `ongoing`. Endpoint AI membangun konteks
-dari sumber resmi milik seluruh BRS dalam kegiatan, mengirim konteks tersebut ke
-Responses API, lalu menyimpan model dan daftar sumber yang digunakan. Saran AI
+dari tabel indikator Bahan Paparan beserta analisis/fenomena dan sumber resmi
+lain milik seluruh BRS dalam kegiatan, mengirim konteks tersebut ke Responses
+API dengan `store=false`, lalu menyimpan model dan daftar sumber yang digunakan. Saran AI
 tidak menjadi jawaban final sampai endpoint `finalize` dipanggil oleh pengguna
 yang berwenang.

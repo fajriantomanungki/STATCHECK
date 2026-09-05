@@ -15,6 +15,7 @@ from app.models.document import Document, DocumentContent
 from app.schemas.document import DocumentDetailResponse, DocumentResponse
 from app.services.document_extractor import DocumentExtractionError, SUPPORTED_EXTENSIONS, extract_document
 from app.services.file_storage import resolve_stored_path, store_file
+from app.services.presentation_indicator_extractor import sync_presentation_indicators
 
 router = APIRouter(tags=["Documents"])
 
@@ -185,6 +186,8 @@ async def upload_document(
             ]
         db.add(document)
         db.flush()
+        if document_type == "bahan_paparan":
+            sync_presentation_indicators(db, document, current_user.id)
         refresh_brs_document_status(db, brs)
         db.commit()
     except Exception:
@@ -230,6 +233,8 @@ def reextract_document(document_id: uuid.UUID, current_user: CurrentUser, db: Db
         document.page_count = 0
         db.execute(delete(DocumentContent).where(DocumentContent.document_id == document.id))
         db.expire(document, ["contents"])
+        if document.document_type == "bahan_paparan" and document.status == "active":
+            sync_presentation_indicators(db, document, current_user.id)
         refresh_brs_document_status(db, document.brs)
         db.commit()
         return document_payload(get_document_or_404(db, document.id), include_contents=True)
@@ -247,6 +252,8 @@ def reextract_document(document_id: uuid.UUID, current_user: CurrentUser, db: Db
     document.extraction_status = "completed"
     document.extraction_error = None
     document.page_count = extraction.page_count
+    if document.document_type == "bahan_paparan" and document.status == "active":
+        sync_presentation_indicators(db, document, current_user.id)
     refresh_brs_document_status(db, document.brs)
     db.commit()
     return document_payload(get_document_or_404(db, document.id), include_contents=True)

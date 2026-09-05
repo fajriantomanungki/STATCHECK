@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.models.indicator import Indicator
     from app.models.release import ReleaseBRS
     from app.models.user import User
+    from app.models.presentation_indicator import PresentationIndicator
 
 
 class BRS(Base):
@@ -36,6 +37,9 @@ class BRS(Base):
     supervisor: Mapped["User | None"] = relationship(foreign_keys=[supervisor_id])
     team: Mapped[list["BRSTeam"]] = relationship(back_populates="brs", cascade="all, delete-orphan")
     data: Mapped[list["BRSData"]] = relationship(back_populates="brs", cascade="all, delete-orphan")
+    presentation_indicators: Mapped[list["PresentationIndicator"]] = relationship(
+        back_populates="brs", cascade="all, delete-orphan"
+    )
     documents: Mapped[list["Document"]] = relationship(
         back_populates="brs", cascade="all, delete-orphan"
     )

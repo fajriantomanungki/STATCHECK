@@ -12,7 +12,7 @@ export function AppShell({ title, children }: { title: string; children: React.R
 
   return (
     <main className="flex min-h-screen bg-[#f6f8fb]">
-      <Sidebar />
+      <Sidebar userLevel={user.user_level} />
       <section className="min-w-0 flex-1">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 lg:px-10">
           <p className="font-bold text-[#102a43] lg:text-sm lg:font-medium lg:text-slate-500">{title}</p>
@@ -20,11 +20,9 @@ export function AppShell({ title, children }: { title: string; children: React.R
         </header>
         <nav className="flex gap-2 overflow-x-auto border-b border-slate-200 bg-white px-5 pb-3 lg:hidden">
           <Link href="/dashboard" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Dashboard</Link>
-          <Link href="/brs" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">BRS</Link>
-          <Link href="/indicators" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Indikator</Link>
-          <Link href="/checking" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Pemeriksaan</Link>
-          <Link href="/approvals" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Persetujuan</Link>
+          <Link href="/brs" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Olah BRS</Link>
           <Link href="/releases" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Rilis</Link>
+          {user.user_level === "admin" && <><Link href="/admin/users" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Kelola User</Link><Link href="/indicators" className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium">Kelola Indikator</Link></>}
         </nav>
         {children}
       </section>

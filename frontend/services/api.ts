@@ -1,5 +1,5 @@
-import type { TokenResponse, User } from "@/types/auth";
-import type { BRS, BRSData, BRSDataForm, BRSForm, DashboardSummary, Indicator, UserOption } from "@/types/phase2";
+import type { TokenResponse, User, UserForm } from "@/types/auth";
+import type { BRS, BRSData, BRSDataForm, BRSForm, DashboardSummary, Indicator, PresentationIndicator, UserOption } from "@/types/phase2";
 import type { BRSDocument, BRSDocumentDetail, DocumentType } from "@/types/phase3";
 import type { CheckResult, CheckRun, CheckRunDetail, ReviewAction } from "@/types/phase4";
 import type { ApprovalWorkflow } from "@/types/phase5";
@@ -53,10 +53,15 @@ export async function getCurrentUser(token: string): Promise<User> {
 }
 
 export const getUserOptions = (token: string) => authorizedFetch<UserOption[]>("/users/options", token);
+export const getUsers = (token: string) => authorizedFetch<User[]>("/users", token);
+export const createUser = (token: string, payload: Omit<UserForm, "is_active"> & { password: string }) => authorizedFetch<User>("/users", token, { method: "POST", body: JSON.stringify(payload) });
+export const updateUser = (token: string, id: string, payload: UserForm) => authorizedFetch<User>(`/users/${id}`, token, { method: "PUT", body: JSON.stringify(payload) });
+export const deleteUser = (token: string, id: string) => authorizedFetch<void>(`/users/${id}`, token, { method: "DELETE" });
 export const getDashboardSummary = (token: string) => authorizedFetch<DashboardSummary>("/dashboard/summary", token);
 export const getIndicators = (token: string, activeOnly = false) => authorizedFetch<Indicator[]>(`/indicators?active_only=${activeOnly}`, token);
 export const createIndicator = (token: string, payload: Pick<Indicator, "nama_indikator" | "kategori" | "satuan_default" | "fungsi">) => authorizedFetch<Indicator>("/indicators", token, { method: "POST", body: JSON.stringify(payload) });
 export const updateIndicator = (token: string, id: string, payload: Omit<Indicator, "id" | "created_at" | "updated_at">) => authorizedFetch<Indicator>(`/indicators/${id}`, token, { method: "PUT", body: JSON.stringify(payload) });
+export const deleteIndicator = (token: string, id: string) => authorizedFetch<void>(`/indicators/${id}`, token, { method: "DELETE" });
 export const getBRSList = (token: string, search = "") => authorizedFetch<BRS[]>(`/brs${search ? `?search=${encodeURIComponent(search)}` : ""}`, token);
 export const getBRS = (token: string, id: string) => authorizedFetch<BRS>(`/brs/${id}`, token);
 export const createBRS = (token: string, payload: BRSForm) => authorizedFetch<BRS>("/brs", token, { method: "POST", body: JSON.stringify(payload) });
@@ -66,6 +71,10 @@ export const getBRSData = (token: string, brsId: string) => authorizedFetch<BRSD
 export const createBRSData = (token: string, brsId: string, payload: BRSDataForm) => authorizedFetch<BRSData>(`/brs/${brsId}/data`, token, { method: "POST", body: JSON.stringify(payload) });
 export const updateBRSData = (token: string, brsId: string, dataId: string, payload: BRSDataForm) => authorizedFetch<BRSData>(`/brs/${brsId}/data/${dataId}`, token, { method: "PUT", body: JSON.stringify(payload) });
 export const deleteBRSData = (token: string, brsId: string, dataId: string) => authorizedFetch<void>(`/brs/${brsId}/data/${dataId}`, token, { method: "DELETE" });
+export const getPresentationIndicators = (token: string, brsId: string) => authorizedFetch<PresentationIndicator[]>(`/brs/${brsId}/presentation-indicators`, token);
+export const refreshPresentationIndicators = (token: string, brsId: string) => authorizedFetch<PresentationIndicator[]>(`/brs/${brsId}/presentation-indicators/refresh`, token, { method: "POST" });
+export const updatePresentationIndicator = (token: string, brsId: string, itemId: string, payload: { analysis: string | null; phenomenon: string | null }) => authorizedFetch<PresentationIndicator>(`/brs/${brsId}/presentation-indicators/${itemId}`, token, { method: "PUT", body: JSON.stringify(payload) });
+export const deletePresentationIndicator = (token: string, brsId: string, itemId: string) => authorizedFetch<void>(`/brs/${brsId}/presentation-indicators/${itemId}`, token, { method: "DELETE" });
 export const getDocuments = (token: string, brsId: string, includeArchived = false) => authorizedFetch<BRSDocument[]>(`/brs/${brsId}/documents?include_archived=${includeArchived}`, token);
 export const getDocument = (token: string, documentId: string) => authorizedFetch<BRSDocumentDetail>(`/documents/${documentId}`, token);
 export const uploadDocument = (token: string, brsId: string, documentType: DocumentType, file: File) => {

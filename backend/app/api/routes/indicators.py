@@ -53,3 +53,22 @@ def update_indicator(indicator_id: uuid.UUID, payload: IndicatorUpdate, current_
         raise HTTPException(status_code=409, detail="Nama indikator sudah digunakan.")
     db.refresh(indicator)
     return indicator
+
+
+@router.delete("/{indicator_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_indicator(
+    indicator_id: uuid.UUID, current_user: CurrentUser, db: DbSession
+) -> None:
+    require_admin(current_user)
+    indicator = db.get(Indicator, indicator_id)
+    if indicator is None:
+        raise HTTPException(status_code=404, detail="Indikator tidak ditemukan.")
+    db.delete(indicator)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Indikator masih digunakan pada data BRS. Nonaktifkan indikator melalui menu Edit.",
+        )

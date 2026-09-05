@@ -29,6 +29,7 @@ def brs_query():
         selectinload(BRS.supervisor),
         selectinload(BRS.team).selectinload(BRSTeam.user),
         selectinload(BRS.data),
+        selectinload(BRS.presentation_indicators),
         selectinload(BRS.documents),
     )
 
@@ -51,7 +52,7 @@ def brs_payload(brs: BRS) -> dict:
         "pjk": brs.pjk,
         "supervisor": brs.supervisor,
         "team": brs.team,
-        "jumlah_data": len(brs.data),
+        "jumlah_data": len(brs.presentation_indicators) if brs.presentation_indicators else len(brs.data),
         "jumlah_dokumen": sum(document.status == "active" for document in brs.documents),
         "created_at": brs.created_at,
         "updated_at": brs.updated_at,

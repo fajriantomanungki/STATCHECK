@@ -37,6 +37,26 @@ export type BRSData = BRSDataForm & {
   created_at: string; updated_at: string;
 };
 
+export type PresentationIndicator = {
+  id: string;
+  brs_id: string;
+  document_id: string;
+  indicator_name: string;
+  value_text: string;
+  numeric_value: string | null;
+  unit: string | null;
+  period_label: string | null;
+  data_type: string;
+  comparison_basis: string | null;
+  value_role: string;
+  metadata_text: string;
+  page_number: number;
+  analysis: string | null;
+  phenomenon: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type DashboardSummary = {
   total_brs: number; draft_brs: number; total_indicators: number; total_brs_data: number; total_documents: number;
   ready_brs: number; released_brs: number; total_releases: number;
