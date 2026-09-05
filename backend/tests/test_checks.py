@@ -85,7 +85,7 @@ def test_automatic_check_and_pjk_review(client):
     assert checked.status_code == 201, checked.text
     result = checked.json()
     assert result["status"] == "completed"
-    assert result["engine_version"] == "rules-v2.5-period-typo"
+    assert result["engine_version"] == "rules-v2.6-region-context"
     assert result["total_checks"] > 0
     assert result["error_count"] >= 1
     assert float(result["overall_score"]) < 100
@@ -660,3 +660,128 @@ def test_typo_check_identifies_document_and_suggested_correction(client):
         ("akomodsi", "akomodasi"),
     }
     assert all(item["document_type"] == "bahan_paparan" for item in typo_findings)
+
+
+def test_same_indicator_with_different_regions_is_not_compared(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "Perjalanan Wisnus Menurut Wilayah",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": (
+            "Perjalanan wisnus asal Provinsi Sulawesi Tengah pada Juli 2026 "
+            "sebanyak 1.000.000 perjalanan."
+        ),
+        "bahan_paparan": (
+            "Perjalanan wisatawan nusantara asal Kota Palu pada Juli 2026 "
+            "sebanyak 300.000 perjalanan."
+        ),
+        "narasi_pimpinan": "Mobilitas wisatawan nusantara telah disampaikan.",
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    assert not any(
+        item["check_type"] == "cross_document"
+        for item in checked.json()["results"]
+    )
+
+
+def test_region_aliases_are_compared_as_the_same_region(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "Perjalanan Wisnus Sulawesi Tengah",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": (
+            "Perjalanan wisnus asal Provinsi Sulawesi Tengah pada Juli 2026 "
+            "sebanyak 1.000.000 perjalanan."
+        ),
+        "bahan_paparan": (
+            "Perjalanan wisnus asal Sulteng pada Juli 2026 sebanyak 900.000 perjalanan."
+        ),
+        "narasi_pimpinan": "Mobilitas wisatawan nusantara telah disampaikan.",
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    errors = [
+        item for item in checked.json()["results"]
+        if item["check_type"] == "cross_document"
+    ]
+    assert len(errors) == 1
+    assert "Provinsi Sulawesi Tengah" in errors[0]["field_name"]
+    assert set(errors[0]["comparison_values"]) == {"bahan_publikasi", "bahan_paparan"}
+
+
+def test_origin_value_is_not_compared_with_destination_value(client):
+    headers = auth_headers(client)
+    brs = client.post(
+        "/api/v1/brs",
+        headers=headers,
+        json={
+            "nama_brs": "Perjalanan Wisnus Asal dan Tujuan",
+            "waktu_rilis": "2026-09-01",
+            "fungsi_pj": "Statistik Distribusi",
+            "supervisor_id": None,
+            "team_user_ids": [],
+        },
+    ).json()
+    texts = {
+        "bahan_publikasi": (
+            "Perjalanan wisnus asal Provinsi Sulawesi Tengah pada Juli 2026 "
+            "sebanyak 1.000.000 perjalanan."
+        ),
+        "bahan_paparan": (
+            "Perjalanan wisnus tujuan Provinsi Sulawesi Tengah pada Juli 2026 "
+            "sebanyak 900.000 perjalanan."
+        ),
+        "narasi_pimpinan": "Mobilitas wisatawan nusantara telah disampaikan.",
+    }
+    for document_type, text in texts.items():
+        response = client.post(
+            f"/api/v1/brs/{brs['id']}/documents",
+            headers=headers,
+            data={"document_type": document_type},
+            files={"file": (f"{document_type}.pdf", pdf_bytes(text), "application/pdf")},
+        )
+        assert response.status_code == 201, response.text
+
+    checked = client.post(f"/api/v1/brs/{brs['id']}/check", headers=headers)
+    assert checked.status_code == 201, checked.text
+    assert not any(
+        item["check_type"] == "cross_document"
+        for item in checked.json()["results"]
+    )

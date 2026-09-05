@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class PresentationIndicator(Base):
-    """Angka indikator yang diekstrak dari Bahan Paparan aktif."""
+    """Angka indikator dari Bahan Paparan dan Narasi Pimpinan aktif."""
 
     __tablename__ = "presentation_indicators"
     __table_args__ = (
@@ -48,3 +48,11 @@ class PresentationIndicator(Base):
     brs: Mapped["BRS"] = relationship(back_populates="presentation_indicators")
     document: Mapped["Document"] = relationship()
     creator: Mapped["User"] = relationship()
+
+    @property
+    def source_document_type(self) -> str:
+        return self.document.document_type
+
+    @property
+    def source_document_name(self) -> str:
+        return self.document.file_name

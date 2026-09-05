@@ -186,7 +186,7 @@ async def upload_document(
             ]
         db.add(document)
         db.flush()
-        if document_type == "bahan_paparan":
+        if document_type in {"bahan_paparan", "narasi_pimpinan"}:
             sync_presentation_indicators(db, document, current_user.id)
         refresh_brs_document_status(db, brs)
         db.commit()
@@ -233,7 +233,7 @@ def reextract_document(document_id: uuid.UUID, current_user: CurrentUser, db: Db
         document.page_count = 0
         db.execute(delete(DocumentContent).where(DocumentContent.document_id == document.id))
         db.expire(document, ["contents"])
-        if document.document_type == "bahan_paparan" and document.status == "active":
+        if document.document_type in {"bahan_paparan", "narasi_pimpinan"} and document.status == "active":
             sync_presentation_indicators(db, document, current_user.id)
         refresh_brs_document_status(db, document.brs)
         db.commit()
@@ -252,7 +252,7 @@ def reextract_document(document_id: uuid.UUID, current_user: CurrentUser, db: Db
     document.extraction_status = "completed"
     document.extraction_error = None
     document.page_count = extraction.page_count
-    if document.document_type == "bahan_paparan" and document.status == "active":
+    if document.document_type in {"bahan_paparan", "narasi_pimpinan"} and document.status == "active":
         sync_presentation_indicators(db, document, current_user.id)
     refresh_brs_document_status(db, document.brs)
     db.commit()

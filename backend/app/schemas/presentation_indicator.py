@@ -14,6 +14,8 @@ class PresentationIndicatorResponse(BaseModel):
     id: uuid.UUID
     brs_id: uuid.UUID
     document_id: uuid.UUID
+    source_document_type: str
+    source_document_name: str
     indicator_name: str
     value_text: str
     numeric_value: Decimal | None

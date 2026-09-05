@@ -1,5 +1,6 @@
 from io import BytesIO
 
+from docx import Document
 from pptx import Presentation
 
 
@@ -15,6 +16,14 @@ def pptx_bytes(text: str) -> bytes:
     slide.placeholders[1].text = text
     stream = BytesIO()
     presentation.save(stream)
+    return stream.getvalue()
+
+
+def docx_bytes(text: str) -> bytes:
+    document = Document()
+    document.add_paragraph(text)
+    stream = BytesIO()
+    document.save(stream)
     return stream.getvalue()
 
 
@@ -156,3 +165,40 @@ def test_presentation_extraction_distinguishes_level_change_and_range(client):
     assert by_value["0,48"]["indicator_name"].endswith("Perubahan")
     assert by_value["1 hingga 2"]["data_type"] == "range"
     assert by_value["1 hingga 2"]["indicator_name"].startswith("Rata-rata Lama Menginap Tamu")
+
+
+def test_indicator_table_combines_presentation_and_leadership_narrative(client):
+    headers = auth_headers(client)
+    brs_id = create_brs(client, headers, "BRS Gabungan Sumber Indikator")
+    presentation_text = (
+        "TPK hotel bintang Provinsi Sulawesi Tengah pada Juli 2026 "
+        "tercatat 52,31 persen."
+    )
+    narrative_text = (
+        "TPK hotel bintang Sulteng pada Juli 2026 tercatat 52,31 persen. "
+        "RLMT hotel bintang Sulteng pada Juli 2026 tercatat 1,67 hari."
+    )
+    presentation = client.post(
+        f"/api/v1/brs/{brs_id}/documents", headers=headers,
+        data={"document_type": "bahan_paparan"},
+        files={"file": ("paparan.pptx", pptx_bytes(presentation_text))},
+    )
+    assert presentation.status_code == 201, presentation.text
+    narrative = client.post(
+        f"/api/v1/brs/{brs_id}/documents", headers=headers,
+        data={"document_type": "narasi_pimpinan"},
+        files={"file": ("narasi.docx", docx_bytes(narrative_text))},
+    )
+    assert narrative.status_code == 201, narrative.text
+
+    listed = client.get(f"/api/v1/brs/{brs_id}/presentation-indicators", headers=headers)
+    assert listed.status_code == 200, listed.text
+    rows = listed.json()
+    assert len(rows) == 2
+    tpk = next(row for row in rows if "TPK" in row["indicator_name"])
+    rlmt = next(row for row in rows if "RLMT" in row["indicator_name"])
+    assert "Provinsi Sulawesi Tengah" in tpk["indicator_name"]
+    assert tpk["source_document_type"] == "bahan_paparan"
+    assert tpk["source_document_name"] == "paparan.pptx"
+    assert rlmt["source_document_type"] == "narasi_pimpinan"
+    assert rlmt["source_document_name"] == "narasi.docx"

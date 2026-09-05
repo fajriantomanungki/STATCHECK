@@ -18,17 +18,17 @@ from app.services.presentation_indicator_extractor import sync_presentation_indi
 router = APIRouter(tags=["Presentation Indicators"])
 
 
-def _active_presentation(db: DbSession, brs_id: uuid.UUID) -> Document | None:
-    return db.scalar(
+def _active_sources(db: DbSession, brs_id: uuid.UUID) -> list[Document]:
+    return list(db.scalars(
         select(Document)
         .options(selectinload(Document.contents))
         .where(
             Document.brs_id == brs_id,
-            Document.document_type == "bahan_paparan",
+            Document.document_type.in_({"bahan_paparan", "narasi_pimpinan"}),
             Document.status == "active",
         )
         .order_by(Document.version.desc())
-    )
+    ).unique())
 
 
 @router.get(
@@ -42,8 +42,9 @@ def list_presentation_indicators(
     require_brs_view(current_user, brs)
     return list(db.scalars(
         select(PresentationIndicator)
+        .options(selectinload(PresentationIndicator.document))
         .where(PresentationIndicator.brs_id == brs_id)
-        .order_by(PresentationIndicator.page_number, PresentationIndicator.created_at)
+        .order_by(PresentationIndicator.created_at, PresentationIndicator.page_number)
     ))
 
 
@@ -56,17 +57,22 @@ def refresh_presentation_indicators(
 ) -> list[PresentationIndicator]:
     brs = get_brs_or_404(db, brs_id)
     require_brs_manage(current_user, brs)
-    document = _active_presentation(db, brs_id)
-    if document is None:
-        raise HTTPException(status_code=409, detail="Unggah Bahan Paparan terlebih dahulu.")
-    if document.extraction_status != "completed":
-        raise HTTPException(status_code=409, detail="Ekstraksi Bahan Paparan belum berhasil.")
-    sync_presentation_indicators(db, document, current_user.id)
+    documents = _active_sources(db, brs_id)
+    if not documents:
+        raise HTTPException(
+            status_code=409,
+            detail="Unggah Bahan Paparan atau Narasi Pimpinan terlebih dahulu.",
+        )
+    completed = [item for item in documents if item.extraction_status == "completed"]
+    if not completed:
+        raise HTTPException(status_code=409, detail="Ekstraksi dokumen sumber belum berhasil.")
+    sync_presentation_indicators(db, completed[0], current_user.id)
     db.commit()
     return list(db.scalars(
         select(PresentationIndicator)
+        .options(selectinload(PresentationIndicator.document))
         .where(PresentationIndicator.brs_id == brs_id)
-        .order_by(PresentationIndicator.page_number, PresentationIndicator.created_at)
+        .order_by(PresentationIndicator.created_at, PresentationIndicator.page_number)
     ))
 
 

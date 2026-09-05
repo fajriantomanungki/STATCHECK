@@ -41,6 +41,8 @@ export type PresentationIndicator = {
   id: string;
   brs_id: string;
   document_id: string;
+  source_document_type: "bahan_paparan" | "narasi_pimpinan";
+  source_document_name: string;
   indicator_name: string;
   value_text: string;
   numeric_value: string | null;

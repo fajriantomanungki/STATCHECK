@@ -67,12 +67,58 @@ BASIS_PATTERNS = {
 }
 BASIS_LABELS = {"yoy": "YoY", "mtm": "MtM", "ytd": "YtD", "qtq": "QtQ"}
 GEOGRAPHY_PATTERN = re.compile(
-    r"\b(?P<kind>Kabupaten|Kota|Provinsi)\s+"
-    r"(?P<name>[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]*(?:\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]*){0,3})"
+    r"\b(?P<kind>Kabupaten|Kab\.?|Kota|Provinsi)\s+"
+    r"(?P<name>[A-Za-zÀ-ÿ'’-]+(?:\s+[A-Za-zÀ-ÿ'’-]+){0,3})",
+    re.IGNORECASE,
 )
 ENTITY_STOP_WORDS = {
-    "adalah", "berada", "berikut", "mencapai", "sebesar", "tercatat", "yaitu",
+    "adalah", "berada", "berikut", "dibandingkan", "mencapai", "naik", "pada",
+    "sebesar", "sebanyak", "tercatat", "turun", "yaitu",
 }
+REGION_ALIASES = (
+    ("provinsi:sulawesi-tengah", "Provinsi Sulawesi Tengah", re.compile(
+        r"\b(?:provinsi\s+)?sulawesi\s+tengah\b|\bsulteng\b", re.IGNORECASE,
+    )),
+    ("kabupaten:banggai-kepulauan", "Kabupaten Banggai Kepulauan", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?banggai\s+kepulauan\b", re.IGNORECASE,
+    )),
+    ("kabupaten:banggai-laut", "Kabupaten Banggai Laut", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?banggai\s+laut\b", re.IGNORECASE,
+    )),
+    ("kabupaten:morowali-utara", "Kabupaten Morowali Utara", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?morowali\s+utara\b", re.IGNORECASE,
+    )),
+    ("kabupaten:parigi-moutong", "Kabupaten Parigi Moutong", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?parigi\s+moutong\b", re.IGNORECASE,
+    )),
+    ("kabupaten:tojo-una-una", "Kabupaten Tojo Una-Una", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?tojo\s+una[\s-]+una\b", re.IGNORECASE,
+    )),
+    ("kabupaten:banggai", "Kabupaten Banggai", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?banggai\b(?!\s+(?:kepulauan|laut))", re.IGNORECASE,
+    )),
+    ("kabupaten:buol", "Kabupaten Buol", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?buol\b", re.IGNORECASE,
+    )),
+    ("kabupaten:donggala", "Kabupaten Donggala", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?donggala\b", re.IGNORECASE,
+    )),
+    ("kabupaten:morowali", "Kabupaten Morowali", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?morowali\b(?!\s+utara)", re.IGNORECASE,
+    )),
+    ("kabupaten:poso", "Kabupaten Poso", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?poso\b", re.IGNORECASE,
+    )),
+    ("kabupaten:sigi", "Kabupaten Sigi", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?sigi\b", re.IGNORECASE,
+    )),
+    ("kabupaten:tolitoli", "Kabupaten Tolitoli", re.compile(
+        r"\b(?:(?:kabupaten|kab\.?)\s+)?toli[\s-]?toli\b", re.IGNORECASE,
+    )),
+    ("kota:palu", "Kota Palu", re.compile(
+        r"\b(?:kota\s+)?palu\b", re.IGNORECASE,
+    )),
+)
 STRONG_INDICATOR_TERMS = {
     "deflasi", "ekspor", "gini", "impor", "inflasi", "kemiskinan", "ketimpangan",
     "ntp", "pdrb", "pengangguran", "rlmt", "tpk", "wisman", "wisnus",
@@ -103,6 +149,10 @@ QUALIFIER_PATTERNS = {
         ("domestik", "Tamu domestik", re.compile(
             r"\b(?:tamu\s+domestik|wisatawan\s+nusantara|wisnus)\b", re.IGNORECASE,
         )),
+    ),
+    "direction": (
+        ("origin", "Asal", re.compile(r"\b(?:asal|berasal(?:\s+dari)?)\b", re.IGNORECASE)),
+        ("destination", "Tujuan", re.compile(r"\b(?:tujuan|menuju)\b", re.IGNORECASE)),
     ),
 }
 
@@ -463,12 +513,32 @@ def _comparison_basis(text: str, start: int, end: int) -> tuple[str | None, str 
 
 
 def _subject(text: str, start: int, end: int) -> tuple[str | None, str | None]:
-    segment_start, _ = _segment_bounds(text, start, end)
-    window_start = max(segment_start, start - 140)
-    window = text[window_start:end]
-    candidates: list[tuple[int, str, str]] = []
+    segment_start, segment_end = _segment_bounds(text, start, end)
+    window_start = max(segment_start, start - 180)
+    window_end = min(segment_end, end + 120)
+    window = text[window_start:window_end]
+    number_center = ((start + end) // 2) - window_start
+    candidates: list[tuple[int, int, str, str]] = []
+
+    for key, label, pattern in REGION_ALIASES:
+        for match in pattern.finditer(window):
+            match_center = (match.start() + match.end()) // 2
+            after_penalty = 15 if match.start() >= number_center else 0
+            candidates.append((
+                abs(match_center - number_center) + after_penalty,
+                -len(match.group()), key, label,
+            ))
+
+    # Gunakan kamus wilayah terlebih dahulu agar "Provinsi Sulawesi Tengah"
+    # dan "Sulteng" menghasilkan kunci identitas yang sama.
+    if candidates:
+        _, _, key, label = min(candidates, key=lambda item: (item[0], item[1]))
+        return key, label
+
     for match in GEOGRAPHY_PATTERN.finditer(window):
-        kind = match.group("kind")
+        kind = match.group("kind").rstrip(".").title()
+        if kind == "Kab":
+            kind = "Kabupaten"
         name_parts: list[str] = []
         for part in match.group("name").split():
             if part.lower() in ENTITY_STOP_WORDS:
@@ -476,24 +546,37 @@ def _subject(text: str, start: int, end: int) -> tuple[str | None, str | None]:
             name_parts.append(part)
         if not name_parts:
             continue
-        label = f"{kind} {' '.join(name_parts)}"
-        candidates.append((len(window) - match.end(), label.lower(), label))
+        label = f"{kind} {' '.join(name_parts).title()}"
+        match_center = (match.start() + match.end()) // 2
+        after_penalty = 15 if match.start() >= number_center else 0
+        candidates.append((
+            abs(match_center - number_center) + after_penalty,
+            -len(match.group()), label.lower(), label,
+        ))
     if not candidates:
         return None, None
-    _, key, label = min(candidates, key=lambda item: item[0])
+    _, _, key, label = min(candidates, key=lambda item: (item[0], item[1]))
     return key, label
 
 
 def _qualifiers(text: str, start: int, end: int) -> tuple[tuple[str, str], ...]:
     """Ambil kategori pembeda dari kalimat yang memuat angka."""
     segment_start, segment_end = _segment_bounds(text, start, end)
-    context = text[segment_start:segment_end]
+    window_start = max(segment_start, start - 140)
+    window_end = min(segment_end, end + 90)
+    context = text[window_start:window_end]
+    number_center = ((start + end) // 2) - window_start
     result: list[tuple[str, str]] = []
     for group, variants in QUALIFIER_PATTERNS.items():
+        candidates: list[tuple[int, str]] = []
         for key, label, pattern in variants:
-            if pattern.search(context):
-                result.append((group, key))
-                break
+            del label
+            for match in pattern.finditer(context):
+                match_center = (match.start() + match.end()) // 2
+                candidates.append((abs(match_center - number_center), key))
+        if candidates:
+            _, key = min(candidates, key=lambda item: item[0])
+            result.append((group, key))
     return tuple(result)
 
 

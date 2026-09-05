@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from sqlalchemy import delete, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.document import Document
 from app.models.indicator import Indicator
@@ -48,6 +48,8 @@ UNIT_LABELS = {
     "index": "indeks",
     "ton": "ton",
 }
+SOURCE_DOCUMENT_TYPES = {"bahan_paparan", "narasi_pimpinan"}
+SOURCE_PRIORITY = {"bahan_paparan": 0, "narasi_pimpinan": 1}
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,33 @@ class SemanticIndicatorValue:
 
 def _normalized(value: str) -> str:
     return " ".join(re.findall(r"[a-z0-9]+", value.lower()))
+
+
+def _numeric_identity(value: Decimal | None) -> str:
+    if value is None:
+        return ""
+    return format(value.normalize(), "f")
+
+
+def _row_identity(
+    indicator_name: str,
+    numeric_value: Decimal | None,
+    unit: str | None,
+    period_label: str | None,
+    data_type: str,
+    comparison_basis: str | None,
+    value_role: str,
+) -> str:
+    """Identitas data untuk menghapus duplikat yang sama persis antardokumen."""
+    return "|".join((
+        _normalized(indicator_name),
+        _numeric_identity(numeric_value),
+        _normalized(unit or ""),
+        _normalized(period_label or ""),
+        data_type,
+        comparison_basis or "",
+        value_role,
+    ))
 
 
 def _master_indicator_name(mention: NumberMention, masters: list[Indicator]) -> str | None:
@@ -200,43 +229,69 @@ def sync_presentation_indicators(
     document: Document,
     created_by: uuid.UUID,
 ) -> list[PresentationIndicator]:
-    """Ganti hasil ekstraksi Bahan Paparan dengan hasil versi aktif terbaru."""
-    if document.document_type != "bahan_paparan":
+    """Gabungkan Bahan Paparan dan Narasi aktif, dengan Paparan sebagai prioritas."""
+    if document.document_type not in SOURCE_DOCUMENT_TYPES:
         return []
 
     previous = list(db.scalars(
         select(PresentationIndicator).where(PresentationIndicator.brs_id == document.brs_id)
     ))
-    annotations = {
-        item.source_hash: (item.analysis, item.phenomenon)
-        for item in previous
-        if item.analysis or item.phenomenon
-    }
+    annotations: dict[str, tuple[str | None, str | None]] = {}
+    for item in previous:
+        if not item.analysis and not item.phenomenon:
+            continue
+        identity = _row_identity(
+            item.indicator_name, item.numeric_value, item.unit, item.period_label,
+            item.data_type, item.comparison_basis, item.value_role,
+        )
+        annotations.setdefault(identity, (item.analysis, item.phenomenon))
+
     db.execute(delete(PresentationIndicator).where(PresentationIndicator.brs_id == document.brs_id))
-    if document.extraction_status != "completed":
+    source_documents = list(db.scalars(
+        select(Document)
+        .options(selectinload(Document.contents))
+        .where(
+            Document.brs_id == document.brs_id,
+            Document.document_type.in_(SOURCE_DOCUMENT_TYPES),
+            Document.status == "active",
+            Document.extraction_status == "completed",
+        )
+    ).unique())
+    source_documents.sort(key=lambda item: SOURCE_PRIORITY[item.document_type])
+    if not source_documents:
         return []
 
     rows: list[PresentationIndicator] = []
+    seen: set[str] = set()
     masters = list(db.scalars(select(Indicator).where(Indicator.is_active.is_(True))))
-    for extracted in extract_semantic_indicator_values(document, masters):
-        analysis, phenomenon = annotations.get(extracted.source_hash, (None, None))
-        rows.append(PresentationIndicator(
-            brs_id=document.brs_id,
-            document_id=document.id,
-            indicator_name=extracted.indicator_name,
-            value_text=extracted.value_text,
-            numeric_value=extracted.numeric_value,
-            unit=extracted.unit,
-            period_label=extracted.period_label,
-            data_type=extracted.data_type,
-            comparison_basis=extracted.comparison_basis,
-            value_role=extracted.value_role,
-            metadata_text=extracted.metadata_text,
-            page_number=extracted.page_number,
-            source_hash=extracted.source_hash,
-            analysis=analysis,
-            phenomenon=phenomenon,
-            created_by=created_by,
-        ))
+    for source_document in source_documents:
+        for extracted in extract_semantic_indicator_values(source_document, masters):
+            identity = _row_identity(
+                extracted.indicator_name, extracted.numeric_value, extracted.unit,
+                extracted.period_label, extracted.data_type,
+                extracted.comparison_basis, extracted.value_role,
+            )
+            if identity in seen:
+                continue
+            seen.add(identity)
+            analysis, phenomenon = annotations.get(identity, (None, None))
+            rows.append(PresentationIndicator(
+                brs_id=document.brs_id,
+                document_id=source_document.id,
+                indicator_name=extracted.indicator_name,
+                value_text=extracted.value_text,
+                numeric_value=extracted.numeric_value,
+                unit=extracted.unit,
+                period_label=extracted.period_label,
+                data_type=extracted.data_type,
+                comparison_basis=extracted.comparison_basis,
+                value_role=extracted.value_role,
+                metadata_text=extracted.metadata_text,
+                page_number=extracted.page_number,
+                source_hash=extracted.source_hash,
+                analysis=analysis,
+                phenomenon=phenomenon,
+                created_by=created_by,
+            ))
     db.add_all(rows)
     return rows
